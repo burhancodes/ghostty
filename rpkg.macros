@@ -1,0 +1,72 @@
+#!/bin/bash
+
+function cached {
+        declare v=${OUTPUT[$1]}
+            [[ -n $v ]] && echo -n "$v"
+}
+
+function git_custom_describe {
+        cached git_custom_describe && return
+
+            declare describe devtag tag commits affix hash
+                describe=$(git describe --always --long --first-parent --abbrev=8 --exclude=tip origin/main)
+                    read -r tag commits hash <<<"${describe//-/ }"
+
+                        devtag="$(grep -oP '\.version\s*=\s*"\K[^\"]+' build.zig.zon)"
+                            tag="${tag:1}"
+                                if [[ "${tag}" == "${devtag}" ]]; then
+                                        affix='stable'
+                                            else
+                                                    tag="${devtag}"
+                                                            affix='dev'
+                                                                fi
+                                                                    [[ ${#hash} -eq 9 ]] && hash="${hash:1}"
+
+                                                                        output "${tag} ${commits} ${affix} ${hash}"
+}
+
+function git_custom_package_version {
+        cached git_custom_package_version && return
+
+            declare tag commits affix hash
+                read -r tag commits affix hash <<<"$(git_custom_describe)"
+
+                    output "${tag}~${affix}.${commits}+${hash}"
+}
+
+function git_custom_internal_version {
+        cached git_custom_internal_version && return
+
+            declare tag commits affix hash
+                read -r tag commits affix hash <<<"$(git_custom_describe)"
+
+                    output "${tag}-${affix}+${hash::-1}"
+}
+
+function git_custom_release {
+        cached git_custom_release && return
+
+            # find last merge
+                declare last_merge rest
+                    read -r last_merge rest <<<"$(git log --merges --oneline -n1)"
+                        [[ -n $last_merge ]] || abort "failed to find last merge"
+
+                            # count commits since last merge; might be zero
+                                declare release
+                                    release=$(git log --oneline HEAD "^$last_merge" | wc -l)
+                                        release=$((release + 1))
+
+                                            output "$release"
+}
+
+function git_custom_date {
+        cached git_custom_date && return
+            output "$(date +'%a %b %d %Y')"
+}
+
+}
+}
+}
+}
+}
+}
