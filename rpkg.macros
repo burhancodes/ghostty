@@ -1,72 +1,79 @@
 #!/bin/bash
 
 function cached {
-        declare v=${OUTPUT[$1]}
-            [[ -n $v ]] && echo -n "$v"
+    declare v=${OUTPUT[$1]}
+    [[ -n $v ]] && echo -n "$v"
+}
+
+function zig_min_version {
+    cached zig_min_version && return
+
+    output "$(grep -oP 'const required_zig = "\K[^"]+' build.zig)"
+}
+
+function zig_max_version {
+    cached zig_max_version && return
+
+    declare major minor patch
+    read -r major minor patch <<<"$(zig_min_version | tr '.' ' ')"
+
+    output "${major}.${minor}.$((patch + 10))"
 }
 
 function git_custom_describe {
-        cached git_custom_describe && return
+    cached git_custom_describe && return
 
-            declare describe devtag tag commits affix hash
-                describe=$(git describe --always --long --first-parent --abbrev=8 --exclude=tip origin/main)
-                    read -r tag commits hash <<<"${describe//-/ }"
+    declare describe devtag tag commits affix hash
+    describe=$(git describe --always --long --first-parent --abbrev=7 --exclude=tip origin/main)
+    read -r tag commits hash <<<"${describe//-/ }"
 
-                        devtag="$(grep -oP '\.version\s*=\s*"\K[^\"]+' build.zig.zon)"
-                            tag="${tag:1}"
-                                if [[ "${tag}" == "${devtag}" ]]; then
-                                        affix='stable'
-                                            else
-                                                    tag="${devtag}"
-                                                            affix='dev'
-                                                                fi
-                                                                    [[ ${#hash} -eq 9 ]] && hash="${hash:1}"
+    devtag="$(grep -oP '\.version\s*=\s*"\K[^\"]+' build.zig.zon)"
+    tag="${tag:1}"
+    if [[ "${tag}" == "${devtag}" ]]; then
+        affix='stable'
+    else
+        tag="${devtag}"
+        affix='dev'
+    fi
+    [[ ${#hash} -eq 8 ]] && hash="${hash:1}"
 
-                                                                        output "${tag} ${commits} ${affix} ${hash}"
+    output "${tag} ${commits} ${affix} ${hash}"
 }
 
 function git_custom_package_version {
-        cached git_custom_package_version && return
+    cached git_custom_package_version && return
 
-            declare tag commits affix hash
-                read -r tag commits affix hash <<<"$(git_custom_describe)"
+    declare tag commits affix hash
+    read -r tag commits affix hash <<<"$(git_custom_describe)"
 
-                    output "${tag}~${affix}.${commits}+${hash}"
+    output "${tag}~${affix}.${commits}+${hash}"
 }
 
 function git_custom_internal_version {
-        cached git_custom_internal_version && return
+    cached git_custom_internal_version && return
 
-            declare tag commits affix hash
-                read -r tag commits affix hash <<<"$(git_custom_describe)"
+    declare tag commits affix hash
+    read -r tag commits affix hash <<<"$(git_custom_describe)"
 
-                    output "${tag}-${affix}+${hash::-1}"
+    output "${tag}-${affix}+${hash}"
 }
 
 function git_custom_release {
-        cached git_custom_release && return
+    cached git_custom_release && return
 
-            # find last merge
-                declare last_merge rest
-                    read -r last_merge rest <<<"$(git log --merges --oneline -n1)"
-                        [[ -n $last_merge ]] || abort "failed to find last merge"
+    # find last merge
+    declare last_merge rest
+    read -r last_merge rest <<<"$(git log --merges --oneline -n1)"
+    [[ -n $last_merge ]] || abort "failed to find last merge"
 
-                            # count commits since last merge; might be zero
-                                declare release
-                                    release=$(git log --oneline HEAD "^$last_merge" | wc -l)
-                                        release=$((release + 1))
+    # count commits since last merge; might be zero
+    declare release
+    release=$(git log --oneline HEAD "^$last_merge" | wc -l)
 
-                                            output "$release"
+    output "$((release + 1))"
 }
 
 function git_custom_date {
-        cached git_custom_date && return
-            output "$(date +'%a %b %d %Y')"
-}
-
-}
-}
-}
-}
-}
+    cached git_custom_date && return
+    output "$(date +'%a %b %d %Y')"
 }
