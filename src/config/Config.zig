@@ -2083,6 +2083,20 @@ pub fn default(alloc_gpa: Allocator) Allocator.Error!Config {
             .{ .key = .{ .translated = .v }, .mods = mods },
             .{ .paste_from_clipboard = {} },
         );
+        // On non-MacOS desktop envs (Windows, KDE, Gnome, Xfce), ctrl+insert is an
+        // alt keybinding for Copy and shift+ins is an alt keybinding for Paste
+        if (!builtin.target.isDarwin()) {
+            try result.keybind.set.put(
+                alloc,
+                .{ .key = .{ .translated = .insert }, .mods = .{ .ctrl = true } },
+                .{ .copy_to_clipboard = {} },
+            );
+            try result.keybind.set.put(
+                alloc,
+                .{ .key = .{ .translated = .insert }, .mods = .{ .shift = true } },
+                .{ .paste_from_clipboard = {} },
+            );
+        }
     }
 
     // Increase font size mapping for keyboards with dedicated plus keys (like german)
@@ -2247,12 +2261,12 @@ pub fn default(alloc_gpa: Allocator) Allocator.Error!Config {
         try result.keybind.set.put(
             alloc,
             .{ .key = .{ .translated = .up }, .mods = .{ .ctrl = true, .alt = true } },
-            .{ .goto_split = .top },
+            .{ .goto_split = .up },
         );
         try result.keybind.set.put(
             alloc,
             .{ .key = .{ .translated = .down }, .mods = .{ .ctrl = true, .alt = true } },
-            .{ .goto_split = .bottom },
+            .{ .goto_split = .down },
         );
         try result.keybind.set.put(
             alloc,
@@ -2516,12 +2530,12 @@ pub fn default(alloc_gpa: Allocator) Allocator.Error!Config {
         try result.keybind.set.put(
             alloc,
             .{ .key = .{ .translated = .up }, .mods = .{ .super = true, .alt = true } },
-            .{ .goto_split = .top },
+            .{ .goto_split = .up },
         );
         try result.keybind.set.put(
             alloc,
             .{ .key = .{ .translated = .down }, .mods = .{ .super = true, .alt = true } },
-            .{ .goto_split = .bottom },
+            .{ .goto_split = .down },
         );
         try result.keybind.set.put(
             alloc,
