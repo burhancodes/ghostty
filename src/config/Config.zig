@@ -147,23 +147,28 @@ const c = @cImport({
 /// By default, synthetic styles are enabled.
 @"font-synthetic-style": FontSyntheticStyle = .{},
 
-/// Apply a font feature. This can be repeated multiple times to enable multiple
-/// font features. You can NOT set multiple font features with a single value
-/// (yet).
+/// Apply a font feature. To enable multiple font features you can repeat
+/// this multiple times or use a comma-separated list of feature settings.
+///
+/// The syntax for feature settings is as follows, where `feat` is a feature:
+///
+///   * Enable features with e.g. `feat`, `+feat`, `feat on`, `feat=1`.
+///   * Disabled features with e.g. `-feat`, `feat off`, `feat=0`.
+///   * Set a feature value with e.g. `feat=2`, `feat = 3`, `feat 4`.
+///   * Feature names may be wrapped in quotes, meaning this config should be
+///     syntactically compatible with the `font-feature-settings` CSS property.
+///
+/// The syntax is fairly loose, but invalid settings will be silently ignored.
 ///
 /// The font feature will apply to all fonts rendered by Ghostty. A future
 /// enhancement will allow targeting specific faces.
-///
-/// A valid value is the name of a feature. Prefix the feature with a `-` to
-/// explicitly disable it. Example: `ss20` or `-ss20`.
 ///
 /// To disable programming ligatures, use `-calt` since this is the typical
 /// feature name for programming ligatures. To look into what font features
 /// your font has and what they do, use a font inspection tool such as
 /// [fontdrop.info](https://fontdrop.info).
 ///
-/// To generally disable most ligatures, use `-calt`, `-liga`, and `-dlig` (as
-/// separate repetitive entries in your config).
+/// To generally disable most ligatures, use `-calt, -liga, -dlig`.
 @"font-feature": RepeatableString = .{},
 
 /// Font size in points. This value can be a non-integer and the nearest integer
@@ -402,14 +407,17 @@ const c = @cImport({
 theme: ?Theme = null,
 
 /// Background color for the window.
+/// Specified as either hex (`#RRGGBB` or `RRGGBB`) or a named X11 color.
 background: Color = .{ .r = 0x28, .g = 0x2C, .b = 0x34 },
 
 /// Foreground color for the window.
+/// Specified as either hex (`#RRGGBB` or `RRGGBB`) or a named X11 color.
 foreground: Color = .{ .r = 0xFF, .g = 0xFF, .b = 0xFF },
 
 /// The foreground and background color for selection. If this is not set, then
 /// the selection color is just the inverted window background and foreground
 /// (note: not to be confused with the cell bg/fg).
+/// Specified as either hex (`#RRGGBB` or `RRGGBB`) or a named X11 color.
 @"selection-foreground": ?Color = null,
 @"selection-background": ?Color = null,
 
@@ -435,15 +443,16 @@ foreground: Color = .{ .r = 0xFF, .g = 0xFF, .b = 0xFF },
 @"minimum-contrast": f64 = 1,
 
 /// Color palette for the 256 color form that many terminal applications use.
-/// The syntax of this configuration is `N=HEXCODE` where `N` is 0 to 255 (for
-/// the 256 colors in the terminal color table) and `HEXCODE` is a typical RGB
-/// color code such as `#AABBCC`.
+/// The syntax of this configuration is `N=COLOR` where `N` is 0 to 255 (for
+/// the 256 colors in the terminal color table) and `COLOR` is a typical RGB
+/// color code such as `#AABBCC` or `AABBCC`, or a named X11 color.
 ///
-/// For definitions on all the codes [see this cheat
-/// sheet](https://www.ditig.com/256-colors-cheat-sheet).
+/// For definitions on the color indices and what they canonically map to,
+/// [see this cheat sheet](https://www.ditig.com/256-colors-cheat-sheet).
 palette: Palette = .{},
 
 /// The color of the cursor. If this is not set, a default will be chosen.
+/// Specified as either hex (`#RRGGBB` or `RRGGBB`) or a named X11 color.
 @"cursor-color": ?Color = null,
 
 /// Swap the foreground and background colors of the cell under the cursor. This
@@ -497,6 +506,7 @@ palette: Palette = .{},
 
 /// The color of the text under the cursor. If this is not set, a default will
 /// be chosen.
+/// Specified as either hex (`#RRGGBB` or `RRGGBB`) or a named X11 color.
 @"cursor-text": ?Color = null,
 
 /// Enables the ability to move the cursor at prompts by using `alt+click` on
@@ -564,6 +574,8 @@ palette: Palette = .{},
 /// On macOS, background opacity is disabled when the terminal enters native
 /// fullscreen. This is because the background becomes gray and it can cause
 /// widgets to show through which isn't generally desirable.
+///
+/// On macOS, changing this configuration requires restarting Ghostty completely.
 @"background-opacity": f64 = 1.0,
 
 /// A positive value enables blurring of the background when background-opacity
@@ -590,6 +602,8 @@ palette: Palette = .{},
 /// that rectangle and can be used to carefully control the dimming effect.
 ///
 /// This will default to the background color.
+///
+/// Specified as either hex (`#RRGGBB` or `RRGGBB`) or a named X11 color.
 @"unfocused-split-fill": ?Color = null,
 
 /// The command to run, usually a shell. If this is not an absolute path, it'll
@@ -1182,11 +1196,15 @@ keybind: Keybinds = .{},
 /// Background color for the window titlebar. This only takes effect if
 /// window-theme is set to ghostty. Currently only supported in the GTK app
 /// runtime.
+///
+/// Specified as either hex (`#RRGGBB` or `RRGGBB`) or a named X11 color.
 @"window-titlebar-background": ?Color = null,
 
 /// Foreground color for the window titlebar. This only takes effect if
 /// window-theme is set to ghostty. Currently only supported in the GTK app
 /// runtime.
+///
+/// Specified as either hex (`#RRGGBB` or `RRGGBB`) or a named X11 color.
 @"window-titlebar-foreground": ?Color = null,
 
 /// This controls when resize overlays are shown. Resize overlays are a
@@ -1802,21 +1820,19 @@ keybind: Keybinds = .{},
 
 /// The color of the ghost in the macOS app icon.
 ///
-/// The format of the color is the same as the `background` configuration;
-/// see that for more information.
-///
 /// Note: This configuration is required when `macos-icon` is set to
 /// `custom-style`.
 ///
 /// This only has an effect when `macos-icon` is set to `custom-style`.
+///
+/// Specified as either hex (`#RRGGBB` or `RRGGBB`) or a named X11 color.
 @"macos-icon-ghost-color": ?Color = null,
 
 /// The color of the screen in the macOS app icon.
 ///
 /// The screen is a gradient so you can specify multiple colors that
-/// make up the gradient. Colors should be separated by commas. The
-/// format of the color is the same as the `background` configuration;
-/// see that for more information.
+/// make up the gradient. Comma-separated colors may be specified as
+/// as either hex (`#RRGGBB` or `RRGGBB`) or as named X11 colors.
 ///
 /// Note: This configuration is required when `macos-icon` is set to
 /// `custom-style`.
@@ -1935,6 +1951,22 @@ keybind: Keybinds = .{},
 /// Changing this value at runtime will only affect new windows.
 @"adw-toolbar-style": AdwToolbarStyle = .raised,
 
+/// Control the toasts that Ghostty shows. Toasts are small notifications
+/// that appear overlaid on top of the terminal window. They are used to
+/// show information that is not critical but may be important.
+///
+/// Valid values are:
+///
+///   - `clipboard-copy` (default: true) - Show a toast when text is copied
+///     to the clipboard.
+///
+/// You can prefix any value with `no-` to disable it. For example,
+/// `no-clipboard-copy` will disable the clipboard copy toast. Multiple
+/// values can be set by separating them with commas.
+///
+/// This configuration only applies to GTK with Adwaita enabled.
+@"adw-toast": AdwToast = .{},
+
 /// If `true` (default), then the Ghostty GTK tabs will be "wide." Wide tabs
 /// are the new typical Gnome style where tabs fill their available space.
 /// If you set this to `false` then tabs will only take up space they need,
@@ -1954,6 +1986,15 @@ keybind: Keybinds = .{},
 /// This configuration only has an effect if Ghostty was built with
 /// Adwaita support.
 @"gtk-adwaita": bool = true,
+
+/// Custom CSS files to be loaded.
+///
+/// This configuration can be repeated multiple times to load multiple files.
+/// Prepend a ? character to the file path to suppress errors if the file does
+/// not exist. If you want to include a file that begins with a literal ?
+/// character, surround the file path in double quotes (").
+/// The file size limit for a single stylesheet is 5MiB.
+@"gtk-custom-css": RepeatablePath = .{},
 
 /// If `true` (default), applications running in the terminal can show desktop
 /// notifications using certain escape sequences such as OSC 9 or OSC 777.
@@ -5433,6 +5474,11 @@ pub const AdwToolbarStyle = enum {
     flat,
     raised,
     @"raised-border",
+};
+
+/// See adw-toast
+pub const AdwToast = packed struct {
+    @"clipboard-copy": bool = true,
 };
 
 /// See mouse-shift-capture
