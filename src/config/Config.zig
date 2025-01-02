@@ -1108,6 +1108,32 @@ keybind: Keybinds = .{},
 @"window-height": u32 = 0,
 @"window-width": u32 = 0,
 
+/// The starting window position. This position is in pixels and is relative
+/// to the top-left corner of the primary monitor. Both values must be set to take
+/// effect. If only one value is set, it is ignored.
+///
+/// Note that the window manager may put limits on the position or override
+/// the position. For example, a tiling window manager may force the window
+/// to be a certain position to fit within the grid. There is nothing Ghostty
+/// will do about this, but it will make an effort.
+///
+/// Also note that negative values are also up to the operating system and
+/// window manager. Some window managers may not allow windows to be placed
+/// off-screen.
+///
+/// Invalid positions are runtime-specific, but generally the positions are
+/// clamped to the nearest valid position.
+///
+/// On macOS, the window position is relative to the top-left corner of
+/// the visible screen area. This means that if the menu bar is visible, the
+/// window will be placed below the menu bar.
+///
+/// Note: this is only supported on macOS and Linux GLFW builds. The GTK
+/// runtime does not support setting the window position (this is a limitation
+/// of GTK 4.0).
+@"window-position-x": ?i16 = null,
+@"window-position-y": ?i16 = null,
+
 /// Whether to enable saving and restoring window state. Window state includes
 /// their position, size, tabs, splits, etc. Some window state requires shell
 /// integration, such as preserving working directories. See `shell-integration`
@@ -1967,10 +1993,11 @@ term: []const u8 = "xterm-ghostty",
 ///  * `download` - Check for updates, automatically download the update,
 ///    notify the user, but do not automatically install the update.
 ///
-/// The default value is `check`.
+/// If unset, we defer to Sparkle's default behavior, which respects the
+/// preference stored in the standard user defaults (`defaults(1)`).
 ///
 /// Changing this value at runtime works after a small delay.
-@"auto-update": AutoUpdate = .check,
+@"auto-update": ?AutoUpdate = null,
 
 /// The release channel to use for auto-updates.
 ///
@@ -4361,6 +4388,45 @@ pub const RepeatablePath = struct {
             // If it isn't absolute, we need to make it absolute relative
             // to the base.
             var buf: [std.fs.max_path_bytes]u8 = undefined;
+
+            // Check if the path starts with a tilde and expand it to the
+            // home directory on Linux/macOS. We explicitly look for "~/"
+            // because we don't support alternate users such as "~alice/"
+            if (std.mem.startsWith(u8, path, "~/")) expand: {
+                // Windows isn't supported yet
+                if (comptime builtin.os.tag == .windows) break :expand;
+
+                const expanded: []const u8 = internal_os.expandHome(
+                    path,
+                    &buf,
+                ) catch |err| {
+                    try diags.append(alloc, .{
+                        .message = try std.fmt.allocPrintZ(
+                            alloc,
+                            "error expanding home directory for path {s}: {}",
+                            .{ path, err },
+                        ),
+                    });
+
+                    // Blank this path so that we don't attempt to resolve it
+                    // again
+                    self.value.items[i] = .{ .required = "" };
+
+                    continue;
+                };
+
+                log.debug(
+                    "expanding file path from home directory: path={s}",
+                    .{expanded},
+                );
+
+                switch (self.value.items[i]) {
+                    .optional, .required => |*p| p.* = try alloc.dupeZ(u8, expanded),
+                }
+
+                continue;
+            }
+
             const abs = dir.realpath(path, &buf) catch |err| abs: {
                 if (err == error.FileNotFound) {
                     // The file doesn't exist. Try to resolve the relative path
