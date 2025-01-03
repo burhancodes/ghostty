@@ -447,6 +447,10 @@ foreground: Color = .{ .r = 0xFF, .g = 0xFF, .b = 0xFF },
 /// the 256 colors in the terminal color table) and `COLOR` is a typical RGB
 /// color code such as `#AABBCC` or `AABBCC`, or a named X11 color.
 ///
+/// The palette index can be in decimal, binary, octal, or hexadecimal.
+/// Decimal is assumed unless a prefix is used: `0b` for binary, `0o` for octal,
+/// and `0x` for hexadecimal.
+///
 /// For definitions on the color indices and what they canonically map to,
 /// [see this cheat sheet](https://www.ditig.com/256-colors-cheat-sheet).
 palette: Palette = .{},
@@ -562,7 +566,7 @@ palette: Palette = .{},
 /// than 0.01 or greater than 10,000 will be clamped to the nearest valid
 /// value.
 ///
-/// A value of "1" (default) scrolls te default amount. A value of "2" scrolls
+/// A value of "1" (default) scrolls the default amount. A value of "2" scrolls
 /// double the default amount. A value of "0.5" scrolls half the default amount.
 /// Et cetera.
 @"mouse-scroll-multiplier": f64 = 1.0,
@@ -742,7 +746,7 @@ fullscreen: bool = false,
 /// This configuration can be reloaded at runtime. If it is set, the title
 /// will update for all windows. If it is unset, the next title change escape
 /// sequence will be honored but previous changes will not retroactively
-/// be set. This latter case may require you restart programs such as neovim
+/// be set. This latter case may require you to restart programs such as Neovim
 /// to get the new title.
 title: ?[:0]const u8 = null,
 
@@ -924,6 +928,15 @@ class: ?[:0]const u8 = null,
 ///     keybinds will always consume the input regardless of this setting.
 ///     Since they are not associated with a specific terminal surface,
 ///     they're never encoded.
+///
+///   * `performable:` - Only consume the input if the action is able to be
+///     performed. For example, the `copy_to_clipboard` action will only
+///     consume the input if there is a selection to copy. If there is no
+///     selection, Ghostty behaves as if the keybind was not set. This has
+///     no effect with `global:` or `all:`-prefixed keybinds. For key
+///     sequences, this will reset the sequence if the action is not
+///     performable (acting identically to not having a keybind set at
+///     all).
 ///
 /// Keybind triggers are not unique per prefix combination. For example,
 /// `ctrl+a` and `global:ctrl+a` are not two separate keybinds. The keybind
@@ -1955,14 +1968,21 @@ keybind: Keybinds = .{},
 /// that appear overlaid on top of the terminal window. They are used to
 /// show information that is not critical but may be important.
 ///
-/// Valid values are:
+/// Possible toasts are:
 ///
 ///   - `clipboard-copy` (default: true) - Show a toast when text is copied
 ///     to the clipboard.
 ///
-/// You can prefix any value with `no-` to disable it. For example,
-/// `no-clipboard-copy` will disable the clipboard copy toast. Multiple
-/// values can be set by separating them with commas.
+/// To specify a toast to enable, specify the name of the toast. To specify
+/// a toast to disable, prefix the name with `no-`. For example, to disable
+/// the clipboard-copy toast, set this configuration to `no-clipboard-copy`.
+/// To enable the clipboard-copy toast, set this configuration to
+/// `clipboard-copy`.
+///
+/// Multiple toasts can be enabled or disabled by separating them with a comma.
+///
+/// A value of "false" will disable all toasts. A value of "true" will
+/// enable all toasts.
 ///
 /// This configuration only applies to GTK with Adwaita enabled.
 @"adw-toast": AdwToast = .{},
@@ -2210,45 +2230,53 @@ pub fn default(alloc_gpa: Allocator) Allocator.Error!Config {
     );
 
     // Expand Selection
-    try result.keybind.set.put(
+    try result.keybind.set.putFlags(
         alloc,
         .{ .key = .{ .translated = .left }, .mods = .{ .shift = true } },
         .{ .adjust_selection = .left },
+        .{ .performable = true },
     );
-    try result.keybind.set.put(
+    try result.keybind.set.putFlags(
         alloc,
         .{ .key = .{ .translated = .right }, .mods = .{ .shift = true } },
         .{ .adjust_selection = .right },
+        .{ .performable = true },
     );
-    try result.keybind.set.put(
+    try result.keybind.set.putFlags(
         alloc,
         .{ .key = .{ .translated = .up }, .mods = .{ .shift = true } },
         .{ .adjust_selection = .up },
+        .{ .performable = true },
     );
-    try result.keybind.set.put(
+    try result.keybind.set.putFlags(
         alloc,
         .{ .key = .{ .translated = .down }, .mods = .{ .shift = true } },
         .{ .adjust_selection = .down },
+        .{ .performable = true },
     );
-    try result.keybind.set.put(
+    try result.keybind.set.putFlags(
         alloc,
         .{ .key = .{ .translated = .page_up }, .mods = .{ .shift = true } },
         .{ .adjust_selection = .page_up },
+        .{ .performable = true },
     );
-    try result.keybind.set.put(
+    try result.keybind.set.putFlags(
         alloc,
         .{ .key = .{ .translated = .page_down }, .mods = .{ .shift = true } },
         .{ .adjust_selection = .page_down },
+        .{ .performable = true },
     );
-    try result.keybind.set.put(
+    try result.keybind.set.putFlags(
         alloc,
         .{ .key = .{ .translated = .home }, .mods = .{ .shift = true } },
         .{ .adjust_selection = .home },
+        .{ .performable = true },
     );
-    try result.keybind.set.put(
+    try result.keybind.set.putFlags(
         alloc,
         .{ .key = .{ .translated = .end }, .mods = .{ .shift = true } },
         .{ .adjust_selection = .end },
+        .{ .performable = true },
     );
 
     // Tabs common to all platforms
@@ -2498,10 +2526,11 @@ pub fn default(alloc_gpa: Allocator) Allocator.Error!Config {
             .{ .key = .{ .translated = .q }, .mods = .{ .super = true } },
             .{ .quit = {} },
         );
-        try result.keybind.set.put(
+        try result.keybind.set.putFlags(
             alloc,
             .{ .key = .{ .translated = .k }, .mods = .{ .super = true } },
             .{ .clear_screen = {} },
+            .{ .performable = true },
         );
         try result.keybind.set.put(
             alloc,
@@ -4125,7 +4154,7 @@ pub const Palette = struct {
         const eqlIdx = std.mem.indexOf(u8, value, "=") orelse
             return error.InvalidValue;
 
-        const key = try std.fmt.parseInt(u8, value[0..eqlIdx], 10);
+        const key = try std.fmt.parseInt(u8, value[0..eqlIdx], 0);
         const rgb = try Color.parseCLI(value[eqlIdx + 1 ..]);
         self.value[key] = .{ .r = rgb.r, .g = rgb.g, .b = rgb.b };
     }
@@ -4163,6 +4192,28 @@ pub const Palette = struct {
         try testing.expect(p.value[0].r == 0xAA);
         try testing.expect(p.value[0].g == 0xBB);
         try testing.expect(p.value[0].b == 0xCC);
+    }
+
+    test "parseCLI base" {
+        const testing = std.testing;
+
+        var p: Self = .{};
+
+        try p.parseCLI("0b1=#014589");
+        try p.parseCLI("0o7=#234567");
+        try p.parseCLI("0xF=#ABCDEF");
+
+        try testing.expect(p.value[0b1].r == 0x01);
+        try testing.expect(p.value[0b1].g == 0x45);
+        try testing.expect(p.value[0b1].b == 0x89);
+
+        try testing.expect(p.value[0o7].r == 0x23);
+        try testing.expect(p.value[0o7].g == 0x45);
+        try testing.expect(p.value[0o7].b == 0x67);
+
+        try testing.expect(p.value[0xF].r == 0xAB);
+        try testing.expect(p.value[0xF].g == 0xCD);
+        try testing.expect(p.value[0xF].b == 0xEF);
     }
 
     test "parseCLI overflow" {
