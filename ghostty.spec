@@ -194,8 +194,10 @@ Enhances:       %{name} = %{version}-%{release}
 %zig_build --fetch
 %zig_fetch git+https://github.com/zigimg/zigimg#3a667bdb3d7f0955a5a51c8468eac83210c1439e
 %zig_fetch git+https://github.com/mitchellh/libxev#f6a672a78436d8efee1aa847a43a900ad773618b
-
 %zig_build %{_build_options}
+mkdir -p %{_builddir}/zig-cache/p
+/usr/bin/zig build --verbose --release=safe -Dtarget=native -Dcpu=baseline --cache-dir %{_builddir}/zig-cache --global-cache-dir %{_builddir}/zig-cache --fetch
+
 
 %install
 %zig_install %{_build_options}
