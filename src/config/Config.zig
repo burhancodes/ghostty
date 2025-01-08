@@ -1567,6 +1567,23 @@ keybind: Keybinds = .{},
 /// Set it to false for the quick terminal to remain open even when it loses focus.
 @"quick-terminal-autohide": bool = true,
 
+/// This configuration option determines the behavior of the quick terminal
+/// when switching between macOS spaces. macOS spaces are virtual desktops
+/// that can be manually created or are automatically created when an
+/// application is in full-screen mode.
+///
+/// Valid values are:
+///
+///  * `move` - When switching to another space, the quick terminal will
+///    also moved to the current space.
+///
+///  * `remain` - The quick terminal will stay only in the space where it
+///    was originally opened and will not follow when switching to another
+///    space.
+///
+/// The default value is `move`.
+@"quick-terminal-space-behavior": QuickTerminalSpaceBehavior = .move,
+
 /// Whether to enable shell integration auto-injection or not. Shell integration
 /// greatly enhances the terminal experience by enabling a number of features:
 ///
@@ -2375,6 +2392,11 @@ pub fn default(alloc_gpa: Allocator) Allocator.Error!Config {
         );
         try result.keybind.set.put(
             alloc,
+            .{ .key = .{ .translated = .w }, .mods = .{ .ctrl = true, .shift = true } },
+            .{ .close_tab = {} },
+        );
+        try result.keybind.set.put(
+            alloc,
             .{ .key = .{ .translated = .left }, .mods = .{ .ctrl = true, .shift = true } },
             .{ .previous_tab = {} },
         );
@@ -2637,6 +2659,11 @@ pub fn default(alloc_gpa: Allocator) Allocator.Error!Config {
             alloc,
             .{ .key = .{ .translated = .w }, .mods = .{ .super = true } },
             .{ .close_surface = {} },
+        );
+        try result.keybind.set.put(
+            alloc,
+            .{ .key = .{ .translated = .w }, .mods = .{ .super = true, .alt = true } },
+            .{ .close_tab = {} },
         );
         try result.keybind.set.put(
             alloc,
@@ -5693,6 +5720,12 @@ pub const QuickTerminalScreen = enum {
     main,
     mouse,
     @"macos-menu-bar",
+};
+
+// See quick-terminal-space-behavior
+pub const QuickTerminalSpaceBehavior = enum {
+    remain,
+    move,
 };
 
 /// See grapheme-width-method
