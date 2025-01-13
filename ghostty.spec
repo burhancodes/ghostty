@@ -10,7 +10,7 @@
 # unbundled https://github.com/ghostty-org/ghostty/pull/4205
 %global harfbuzz_version 8.4.0
 %global utfcpp_version 4.0.5
-%global iterm2_color_commit 4762ad5bd6d3906e28babdc2bda8a967d63a63be
+%global iterm2_color_commit 25cb3c3f52c7011cd8a599f8d144fc63f4409eb6
 %global z2d_commit 4638bb02a9dc41cc2fb811f092811f6a951c752a
 %global spirv_cross_commit 476f384eb7d9e48613c45179e502a15ab95b6b49
 %global libvaxis_commit1 6d729a2dc3b934818dffe06d2ba3ce02841ed74b
@@ -32,7 +32,7 @@
 %global zf_commit ed99ca18b02dda052e20ba467e90b623c04690dd
 %global zigimg_commit 3a667bdb3d7f0955a5a51c8468eac83210c1439e
 %global zg_version 0.13.2
-%global zig_wayland_commit 0823d9116b80d65ecfad48a2efbca166c7b03497
+%global zig_wayland_commit fbfe3b4ac0b472a27b1f1a67405436c58cbee12d
 %global wayland_commit 9cb3d7aa9dc995ffafdbdef7ab86a949d0fb0e7d
 %global wayland_protocols_commit 258d8f88f2c8c25a830c6316f87d23ce1a0f12d9
 %global plasma_wayland_protocols_commit db525e8f9da548cffa2ac77618dd0fbe7f511b86
@@ -45,12 +45,7 @@
 %global _zig_release_mode fast
 %global library             libghostty
 %global project_id          com.mitchellh.ghostty
-%global project_description %{expand:
-Ghostty is a terminal emulator that differentiates itself by being
-fast, feature-rich, and native. While there are many excellent
-terminal emulators available, they all force you to choose between
-speed, features, or native UIs. Ghostty provides all three.
-}
+%global project_summary     Fast, native, feature-rich terminal emulator pushing modern features
 
 %global build_options %{shrink: \
     -Doptimize=ReleaseFast \
@@ -86,9 +81,7 @@ speed, features, or native UIs. Ghostty provides all three.
 Name:           ghostty
 Version:        {{{git_custom_package_version}}}
 Release:        {{{git_custom_release}}}%{?dist}
-Summary:        Fast, native, feature-rich terminal emulator pushing modern features
-Vendor:         Burhanverse
-Group:          Applications/Terminal
+Summary:        %{project_summary}
 
 # ghostty:                  MIT
 # libvaxis:                 MIT
@@ -247,23 +240,26 @@ Requires:       %{name}-shell-integration = %{version}-%{release}
 Requires:       %{name}-themes = %{version}-%{release}
 
 %description
-%{project_description}
+Ghostty is a terminal emulator that differentiates itself by being
+fast, feature-rich, and native. While there are many excellent
+terminal emulators available, they all force you to choose between
+speed, features, or native UIs. Ghostty provides all three.
 
 %if %{with lib}
 
 %package -n %{library}
-Summary:        %{name} terminal library
+Summary:        Terminal library for %{name}
 
 %description -n %{library}
-%{project_description}
+%{project_summary}.
 
 %{summary}.
 
 %package -n %{library}-static
-Summary:        Static %{name} terminal libary
+Summary:        Static terminal libary for %{name}
 
 %description -n %{library}-static
-%{project_description}
+%{project_summary}.
 
 %{summary}.
 
@@ -273,7 +269,7 @@ BuildArch:      noarch
 Requires:       %{library}
 
 %description -n %{library}-devel
-%{project_description}
+%{project_summary}.
 
 %{summary}.
 
@@ -287,7 +283,7 @@ Requires:       bash-completion
 Supplements:    (%{name} = %{version}-%{release} and bash-completion)
 
 %description    bash-completion
-%{project_description}
+%{project_summary}.
 
 %{summary}.
 
@@ -299,7 +295,7 @@ Requires:       zsh
 Supplements:    (%{name} = %{version}-%{release} and zsh)
 
 %description    zsh-completion
-%{project_description}
+%{project_summary}.
 
 %{summary}.
 
@@ -311,7 +307,7 @@ Requires:       fish
 Supplements:    (%{name} = %{version}-%{release} and fish)
 
 %description    fish-completion
-%{project_description}
+%{project_summary}.
 
 %{summary}.
 
@@ -320,17 +316,17 @@ Summary:        Shell integration scripts for %{name}
 BuildArch:      noarch
 
 %description    shell-integration
-%{project_description}
+%{project_summary}.
 
 %{summary}.
 
 %package        nautilus
-Summary:        %{name} extension for Nautilus
+Summary:        Nautilus extension for %{name}
 BuildArch:      noarch
 Supplements:    (%{name} = %{version}-%{release} and nautilus)
 
 %description    nautilus
-%{project_description}
+%{project_summary}.
 
 %{summary}.
 
@@ -340,7 +336,7 @@ BuildArch:      noarch
 Supplements:    (%{name} = %{version}-%{release} and neovim)
 
 %description    neovim-plugin
-%{project_description}
+%{project_summary}.
 
 %{summary}.
 
@@ -350,7 +346,7 @@ BuildArch:      noarch
 Supplements:    (%{name} = %{version}-%{release} and vim)
 
 %description    vim-plugin
-%{project_description}
+%{project_summary}.
 
 %{summary}.
 
@@ -360,7 +356,7 @@ BuildArch:      noarch
 Supplements:    (%{name} = %{version}-%{release} and bat)
 
 %description    bat-syntax
-%{project_description}
+%{project_summary}.
 
 %{summary}.
 
@@ -371,7 +367,7 @@ Requires:       %{name} = %{version}-%{release}
 Requires:       ncurses-base
 
 %description    terminfo
-%{project_description}
+%{project_summary}.
 
 %{summary}.
 
@@ -380,7 +376,7 @@ Summary:        Themes for %{name}
 BuildArch:      noarch
 
 %description    themes
-%{project_description}
+%{project_summary}.
 
 %{summary}.
 
@@ -390,7 +386,7 @@ BuildArch:      noarch
 Enhances:       %{name} = %{version}-%{release}
 
 %description    docs
-%{project_description}
+%{project_summary}.
 
 %{summary}.
 
@@ -527,3 +523,4 @@ desktop-file-validate %{buildroot}%{_datadir}/applications/%{project_id}.desktop
 
 %changelog
 * {{{git_custom_date}}} Burhanverse <contact@burhanverse.eu.org> - {{{git_custom_package
+- Nightly build 
