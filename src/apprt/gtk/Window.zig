@@ -266,6 +266,9 @@ pub fn init(self: *Window, app: *App) !void {
     c.gtk_popover_set_has_arrow(@ptrCast(@alignCast(self.context_menu)), 0);
     c.gtk_widget_set_halign(self.context_menu, c.GTK_ALIGN_START);
 
+    // If we want the window to be maximized, we do that here.
+    if (app.config.maximize) c.gtk_window_maximize(self.window);
+
     // If we are in fullscreen mode, new windows start fullscreen.
     if (app.config.fullscreen) c.gtk_window_fullscreen(self.window);
 
@@ -498,9 +501,9 @@ pub fn moveTab(self: *Window, surface: *Surface, position: c_int) void {
     self.notebook.moveTab(tab, position);
 }
 
-/// Go to the next tab for a surface.
+/// Go to the last tab for a surface.
 pub fn gotoLastTab(self: *Window) void {
-    const max = self.notebook.nPages() -| 1;
+    const max = self.notebook.nPages();
     self.gotoTab(@intCast(max));
 }
 
@@ -520,6 +523,15 @@ pub fn toggleTabOverview(self: *Window) void {
         if (comptime !adwaita.versionAtLeast(1, 4, 0)) unreachable;
         const tab_overview: *c.AdwTabOverview = @ptrCast(@alignCast(tab_overview_widget));
         c.adw_tab_overview_set_open(tab_overview, 1 - c.adw_tab_overview_get_open(tab_overview));
+    }
+}
+
+/// Toggle the maximized state for this window.
+pub fn toggleMaximize(self: *Window) void {
+    if (c.gtk_window_is_maximized(self.window) == 0) {
+        c.gtk_window_maximize(self.window);
+    } else {
+        c.gtk_window_unmaximize(self.window);
     }
 }
 
