@@ -93,7 +93,7 @@ class AppDelegate: NSObject,
     }
 
     /// Tracks the windows that we hid for toggleVisibility.
-    private var hiddenWindows: [Weak<NSWindow>] = []
+    private var hiddenState: ToggleVisibilityState? = nil
 
     /// The observer for the app appearance.
     private var appearanceObserver: NSKeyValueObservation? = nil
@@ -217,8 +217,8 @@ class AppDelegate: NSObject,
     }
 
     func applicationDidBecomeActive(_ notification: Notification) {
-        // If we're back then clear the hidden windows
-        self.hiddenWindows = []
+        // If we're back manually then clear the hidden state because macOS handles it.
+        self.hiddenState = nil
 
         // First launch stuff
         if (!applicationHasBecomeActive) {
@@ -709,21 +709,15 @@ class AppDelegate: NSObject,
 
     /// Toggles visibility of all Ghosty Terminal windows. When hidden, activates Ghostty as the frontmost application
     @IBAction func toggleVisibility(_ sender: Any) {
-        // Toggle visibility doesn't do anything if the focused window is native
-        // fullscreen.
-        guard let keyWindow = NSApp.keyWindow,
-              !keyWindow.styleMask.contains(.fullScreen) else { return }
-
         // If we have focus, then we hide all windows.
         if NSApp.isActive {
-            // We need to keep track of the windows that were visible because we only
-            // want to bring back these windows if we remove the toggle.
-            //
-            // We also ignore fullscreen windows because they don't hide anyways.
-            self.hiddenWindows = NSApp.windows.filter {
-                $0.isVisible &&
-                !$0.styleMask.contains(.fullScreen)
-            }.map { Weak($0) }
+            // Toggle visibility doesn't do anything if the focused window is native
+            // fullscreen. This is only relevant if Ghostty is active.
+            guard let keyWindow = NSApp.keyWindow,
+                  !keyWindow.styleMask.contains(.fullScreen) else { return }
+
+            // Keep track of our hidden state to restore properly
+            self.hiddenState = .init()
             NSApp.hide(nil)
             return
         }
@@ -734,8 +728,8 @@ class AppDelegate: NSObject,
         // Bring all windows to the front. Note: we don't use NSApp.unhide because
         // that will unhide ALL hidden windows. We want to only bring forward the
         // ones that we hid.
-        self.hiddenWindows.forEach { $0.value?.orderFrontRegardless() }
-        self.hiddenWindows = []
+        hiddenState?.restore()
+        hiddenState = nil
     }
 
     private struct DerivedConfig {
@@ -753,6 +747,35 @@ class AppDelegate: NSObject,
             self.initialWindow = config.initialWindow
             self.shouldQuitAfterLastWindowClosed = config.shouldQuitAfterLastWindowClosed
             self.quickTerminalPosition = config.quickTerminalPosition
+        }
+    }
+
+    private struct ToggleVisibilityState {
+        let hiddenWindows: [Weak<NSWindow>]
+        let keyWindow: Weak<NSWindow>?
+
+        init() {
+            // We need to know the key window so that we can bring focus back to the
+            // right window if it was hidden.
+            self.keyWindow = if let keyWindow = NSApp.keyWindow {
+                .init(keyWindow)
+            } else {
+                nil
+            }
+
+            // We need to keep track of the windows that were visible because we only
+            // want to bring back these windows if we remove the toggle.
+            //
+            // We also ignore fullscreen windows because they don't hide anyways.
+            self.hiddenWindows = NSApp.windows.filter {
+                $0.isVisible &&
+                !$0.styleMask.contains(.fullScreen)
+            }.map { Weak($0) }
+        }
+
+        func restore() {
+            hiddenWindows.forEach { $0.value?.orderFrontRegardless() }
+            keyWindow?.value?.makeKey()
         }
     }
 }
