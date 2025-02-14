@@ -19,6 +19,7 @@
 %global zf_commit ed99ca18b02dda052e20ba467e90b623c04690dd
 %global zigimg_commit 3a667bdb3d7f0955a5a51c8468eac83210c1439e
 %global zg_version 0.13.2
+%global zig_gobject_version 0.2.2
 %global zig_wayland_commit fbfe3b4ac0b472a27b1f1a67405436c58cbee12d
 %global wayland_commit 9cb3d7aa9dc995ffafdbdef7ab86a949d0fb0e7d
 %global wayland_protocols_commit 258d8f88f2c8c25a830c6316f87d23ce1a0f12d9
@@ -81,6 +82,7 @@ Summary:        %{project_summary}
 # z2d:                      MPL-2.0
 # zf:                       MIT
 # zigimg:                   MIT
+# zig-gobject:              0BSD
 # ziglyph:                  MIT
 # zg:                       MIT
 # zig-wayland:              MIT
@@ -95,7 +97,7 @@ Summary:        %{project_summary}
 # pkg/cimgui:               MIT
 # pkg/wuffs:                Apache-2.0 AND MIT
 # vendor/glad               (WTFPL OR CC0-1.0) AND Apache-2.0
-License:        MIT AND MPL-2.0 AND LGPL-2.1-only AND BSL-1.0 AND Apache-2.0 AND BSD-2-Clause AND BSD-3-Clause AND GPL-3.0-or-later AND Apache-2.0 AND (WTFPL OR CC0-1.0)
+License:        MIT AND MPL-2.0 AND 0BSD AND LGPL-2.1-only AND BSL-1.0 AND Apache-2.0 AND BSD-2-Clause AND BSD-3-Clause AND GPL-3.0-or-later AND Apache-2.0 AND (WTFPL OR CC0-1.0)
 
 URL:            https://ghostty.org/
 Source0:        {{{git_repo_pack}}}
@@ -116,15 +118,16 @@ Source21:       https://deps.files.ghostty.org/ziglyph-%{ziglyph_commit}.tar.gz
 Source22:       https://github.com/natecraddock/zf/archive/%{zf_commit}/zf-%{zf_commit}.tar.gz
 Source23:       https://github.com/zigimg/zigimg/archive/%{zigimg_commit}/zigimg-%{zigimg_commit}.tar.gz
 Source24:       https://codeberg.org/atman/zg/archive/v%{zg_version}.tar.gz#/zg-%{zg_version}.tar.gz
-Source25:       https://github.com/mitchellh/zig-objc/archive/%{zig_objc_commit}/zig-objc-%{zig_objc_commit}.tar.gz
-Source26:       https://github.com/mitchellh/zig-js/archive/%{zig_js_commit}/zig-js-%{zig_js_commit}.tar.gz
-Source27:       https://codeberg.org/ifreund/zig-wayland/archive/%{zig_wayland_commit}.tar.gz#/zig-wayland-%{zig_wayland_commit}.tar.gz
-Source28:       https://deps.files.ghostty.org/wayland-%{wayland_commit}.tar.gz#/ghostty-wayland-%{wayland_commit}.tar.gz
-Source29:       https://deps.files.ghostty.org/wayland-protocols-%{wayland_protocols_commit}.tar.gz#/ghostty-wayland-protocols-%{wayland_protocols_commit}.tar.gz
-Source30:       https://github.com/KDE/plasma-wayland-protocols/archive/%{plasma_protocols_commit}/plasma-wayland-protocols-%{plasma_protocols_commit}.tar.gz
+Source25:       https://github.com/ianprime0509/zig-gobject/releases/download/v%{zig_gobject_version}/bindings-gnome47.tar.zst
+Source26:       https://github.com/mitchellh/zig-objc/archive/%{zig_objc_commit}/zig-objc-%{zig_objc_commit}.tar.gz
+Source27:       https://github.com/mitchellh/zig-js/archive/%{zig_js_commit}/zig-js-%{zig_js_commit}.tar.gz
+Source28:       https://codeberg.org/ifreund/zig-wayland/archive/%{zig_wayland_commit}.tar.gz#/zig-wayland-%{zig_wayland_commit}.tar.gz
+Source29:       https://deps.files.ghostty.org/wayland-%{wayland_commit}.tar.gz#/ghostty-wayland-%{wayland_commit}.tar.gz
+Source30:       https://deps.files.ghostty.org/wayland-protocols-%{wayland_protocols_commit}.tar.gz#/ghostty-wayland-protocols-%{wayland_protocols_commit}.tar.gz
+Source31:       https://github.com/KDE/plasma-wayland-protocols/archive/%{plasma_protocols_commit}/plasma-wayland-protocols-%{plasma_protocols_commit}.tar.gz
 
 %global source_setup %{lua: \
-    for i = 10, 30 do \
+    for i = 10, 31 do \
         print(" -a " .. i) \
     end \
 }
@@ -147,6 +150,7 @@ Provides:       bundled(zig-objc) = %{zig_objc_commit}
 Provides:       bundled(zig-js) = %{zig_js_commit}
 Provides:       bundled(zig-wayland) = %{zig_wayland_commit}
 Provides:       bundled(wayland) = %{wayland_commit}
+Provides:       bundled(zig-gobject) = %{zig_gobject_version}
 Provides:       bundled(wayland-protocols) = %{wayland_protocols_commit}
 Provides:       bundled(plasma-wayland-protocols) = %{plasma_protocols_commit}
 # only the generated output is vendored
@@ -381,6 +385,7 @@ Enhances:       %{name} = %{version}-%{release}
 %zig_fetch zig-js-%{zig_js_commit}
 %zig_fetch zig-wayland
 %zig_fetch wayland-main
+%zig_fetch bindings
 %zig_fetch wayland-protocols-main
 %zig_fetch plasma-wayland-protocols-%{plasma_protocols_commit}
 
