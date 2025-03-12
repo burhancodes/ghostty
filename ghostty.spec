@@ -66,7 +66,6 @@ BuildRequires:  harfbuzz-devel
 BuildRequires:  libpng-devel
 BuildRequires:  zlib-ng-devel
 BuildRequires:  oniguruma-devel
-BuildRequires:  libX11-devel
 BuildRequires:  gobject-introspection-devel
 BuildRequires:  blueprint-compiler
 BuildRequires:  gtk4-devel
