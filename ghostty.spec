@@ -66,6 +66,7 @@ BuildRequires:  pkgconfig(libxml-2.0)
 # app runtime
 BuildRequires:  pkgconfig(gtk4)
 BuildRequires:  gtk-layer-shell
+BuildRequires:  gtk4-layer-shell
 BuildRequires:  pkgconfig(libadwaita-1)
 BuildRequires:  libX11-devel
 BuildRequires:  gobject-introspection-devel
