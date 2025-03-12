@@ -65,7 +65,7 @@ BuildRequires:  pkgconfig(oniguruma)
 BuildRequires:  pkgconfig(libxml-2.0)
 # app runtime
 BuildRequires:  pkgconfig(gtk4)
-BuildRequires:  pkgconfig(gtk-layer-shell)
+BuildRequires:  gtk-layer-shell
 BuildRequires:  pkgconfig(libadwaita-1)
 BuildRequires:  libX11-devel
 BuildRequires:  gobject-introspection-devel
