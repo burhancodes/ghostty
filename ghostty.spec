@@ -56,17 +56,17 @@ BuildRequires:  git, gcc, pkg-config, fdupes, desktop-file-utils, pandoc-cli
 BuildRequires:  pkgconfig(simdutf) >= 5.2.8
 # font backend
 BuildRequires:  pkgconfig(bzip2)
-BuildRequires:  pkgconfig(freetype2)
-BuildRequires:  pkgconfig(fontconfig)
-BuildRequires:  pkgconfig(harfbuzz)
-BuildRequires:  pkgconfig(libpng)
-BuildRequires:  pkgconfig(zlib-ng)
-BuildRequires:  pkgconfig(oniguruma)
+BuildRequires:  pixman-devel
+BuildRequires:  freetype-devel
+BuildRequires:  fontconfig-devel
+BuildRequires:  glib2-devel
+BuildRequires:  harfbuzz-devel
+BuildRequires:  libpng-devel
+BuildRequires:  zlib-ng-devel
+BuildRequires:  oniguruma-devel
 BuildRequires:  pkgconfig(libxml-2.0)
-# app runtime
-BuildRequires:  pkgconfig(gtk4)
-BuildRequires:  gtk-layer-shell
-BuildRequires:  gtk4-layer-shell
+BuildRequires:  gtk4-devel
+BuildRequires:  gtk4-layer-shell-devel
 BuildRequires:  pkgconfig(libadwaita-1)
 BuildRequires:  libX11-devel
 BuildRequires:  gobject-introspection-devel
