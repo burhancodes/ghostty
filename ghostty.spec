@@ -54,8 +54,10 @@ BuildRequires:  (zig >= {{{zig_min_version}}} with zig < {{{zig_max_version}}})
 BuildRequires:  zig-rpm-macros >= 0.13.0-4
 BuildRequires:  git, gcc, pkg-config, fdupes, desktop-file-utils, pandoc-cli
 BuildRequires:  pkgconfig(simdutf) >= 5.2.8
-# font backend
 BuildRequires:  pkgconfig(bzip2)
+BuildRequires:  pkgconfig(libxml-2.0)
+BuildRequires:  pkgconfig(libadwaita-1)
+# font backend
 BuildRequires:  pixman-devel
 BuildRequires:  freetype-devel
 BuildRequires:  fontconfig-devel
@@ -64,13 +66,26 @@ BuildRequires:  harfbuzz-devel
 BuildRequires:  libpng-devel
 BuildRequires:  zlib-ng-devel
 BuildRequires:  oniguruma-devel
-BuildRequires:  pkgconfig(libxml-2.0)
-BuildRequires:  gtk4-devel
-BuildRequires:  gtk4-layer-shell-devel
-BuildRequires:  pkgconfig(libadwaita-1)
 BuildRequires:  libX11-devel
 BuildRequires:  gobject-introspection-devel
 BuildRequires:  blueprint-compiler
+BuildRequires:  gtk4-devel
+BuildRequires:  gtk4-layer-shell-devel
+BuildRequires: libadwaita-devel
+BuildRequires:  pandoc-cli
+BuildRequires:  pkg-config
+BuildRequires:  wayland-protocols-devel
+
+Requires: fontconfig
+Requires: freetype
+Requires: glib2
+Requires: gtk4
+Requires: harfbuzz
+Requires: libadwaita
+Requires: libpng
+Requires: oniguruma
+Requires: pixman
+Requires: zlib-ng
 
 Requires:       %{name}-terminfo = %{version}-%{release}
 Requires:       %{name}-shell-integration = %{version}-%{release}
