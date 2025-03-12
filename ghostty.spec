@@ -57,7 +57,7 @@ BuildRequires:  pkgconfig(simdutf) >= 5.2.8
 BuildRequires:  pkgconfig(bzip2)
 BuildRequires:  pkgconfig(libxml-2.0)
 BuildRequires:  pkgconfig(libadwaita-1)
-# font backend
+
 BuildRequires:  pixman-devel
 BuildRequires:  freetype-devel
 BuildRequires:  fontconfig-devel
@@ -70,21 +70,22 @@ BuildRequires:  gobject-introspection-devel
 BuildRequires:  blueprint-compiler
 BuildRequires:  gtk4-devel
 BuildRequires:  gtk4-layer-shell-devel
-BuildRequires: libadwaita-devel
+BuildRequires:  libadwaita-devel
+BuildRequires:  libX11-devel
 BuildRequires:  pandoc-cli
 BuildRequires:  pkg-config
 BuildRequires:  wayland-protocols-devel
 
-Requires: fontconfig
-Requires: freetype
-Requires: glib2
-Requires: gtk4
-Requires: harfbuzz
-Requires: libadwaita
-Requires: libpng
-Requires: oniguruma
-Requires: pixman
-Requires: zlib-ng
+Requires:       fontconfig
+Requires:       freetype
+Requires:       glib2
+Requires:       gtk4
+Requires:       harfbuzz
+Requires:       libadwaita
+Requires:       libpng
+Requires:       oniguruma
+Requires:       pixman
+Requires:       zlib-ng
 
 Requires:       %{name}-terminfo = %{version}-%{release}
 Requires:       %{name}-shell-integration = %{version}-%{release}
