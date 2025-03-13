@@ -12,6 +12,7 @@
     --summary all
     -Doptimize=ReleaseFast
     -fno-sys=glslang
+    -fsys=gtk4-layer-shell
     -fsys=simdutf
     -Dflatpak=false
     -Dfont-backend=fontconfig_freetype
