@@ -438,12 +438,15 @@ pub fn add(
         switch (self.config.app_runtime) {
             .none => {},
 
-            .glfw => glfw: {
-                const mach_glfw_dep = b.lazyDependency("mach_glfw", .{
+            .glfw => {
+                const glfw_dep = b.dependency("glfw", .{
                     .target = target,
                     .optimize = optimize,
-                }) orelse break :glfw;
-                step.root_module.addImport("glfw", mach_glfw_dep.module("mach-glfw"));
+                });
+                step.root_module.addImport(
+                    "glfw",
+                    glfw_dep.module("glfw"),
+                );
             },
 
             .gtk => {
@@ -452,12 +455,12 @@ pub fn add(
                     .optimize = optimize,
                 });
                 const gobject_imports = .{
-                    .{ "gobject", "gobject2" },
+                    .{ "adw", "adw1" },
+                    .{ "gdk", "gdk4" },
                     .{ "gio", "gio2" },
                     .{ "glib", "glib2" },
+                    .{ "gobject", "gobject2" },
                     .{ "gtk", "gtk4" },
-                    .{ "gdk", "gdk4" },
-                    .{ "adw", "adw1" },
                 };
                 inline for (gobject_imports) |import| {
                     const name, const module = import;
