@@ -256,10 +256,11 @@ export SHELL=/bin/bash
 %endif
 
 %install
-%zig_install %{gtk_options}
+export SHELL=/bin/bash
+/usr/bin/zig build install %{gtk_options} --prefix %{buildroot}/usr || { cat build.log || true; exit 1; }
 
 %if %{with lib}
-%zig_install %{lib_options}
+/usr/bin/zig build install %{lib_options} --prefix %{buildroot}/usr || { cat build.log || true; exit 1; }
 %endif
 
 %fdupes %{buildroot}%{_datadir}
