@@ -248,10 +248,11 @@ Enhances:       %{name} = %{version}-%{release}
 ZIG_GLOBAL_CACHE_DIR=%{_zig_cache_dir} ./nix/build-support/fetch-zig-cache.sh
 
 %build
-%zig_build %{gtk_options}
+export SHELL=/bin/bash
+/usr/bin/zig build %{gtk_options} || { cat build.log || true; exit 1; }
 
 %if %{with lib}
-%zig_build %{lib_options}
+/usr/bin/zig build %{lib_options} || { cat build.log || true; exit 1; }
 %endif
 
 %install
