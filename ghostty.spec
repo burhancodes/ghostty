@@ -249,7 +249,6 @@ ZIG_GLOBAL_CACHE_DIR=%{_zig_cache_dir} ./nix/build-support/fetch-zig-cache.sh
 
 %build
 %zig_build %{gtk_options}
-./zig-out/bin/%{name} +version
 
 %if %{with lib}
 %zig_build %{lib_options}
@@ -333,5 +332,5 @@ desktop-file-validate %{buildroot}%{_datadir}/applications/%{project_id}.desktop
 %{_datadir}/%{name}/doc/
 
 %changelog
-* {{{git_custom_date}}} Burhanverse <contact@burhanverse.eu.org> - {{{git_custom_package
+* {{{git_custom_date}}} Burhanverse <contact@burhanverse.eu.org> - {{{git_custom_package_version}}}-{{{git_custom_release}}}
 - Tip build from git repository
