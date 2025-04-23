@@ -51,8 +51,7 @@ Source0:        {{{git_repo_pack}}}
 ExclusiveArch:  %{zig_arches}
 ExcludeArch:    %{ix86}
 
-BuildRequires:  (zig >= {{{zig_min_version}}} with zig < {{{zig_max_version}}})
-BuildRequires:  zig-rpm-macros >= 0.13.0-4
+BuildRequires:  zig >= 0.14.0
 BuildRequires:  git, gcc, pkg-config, fdupes, desktop-file-utils, pandoc-cli
 BuildRequires:  pkgconfig(simdutf) >= 5.2.8
 BuildRequires:  pkgconfig(bzip2)
