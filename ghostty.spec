@@ -267,6 +267,11 @@ export SHELL=/bin/bash
 /usr/bin/zig build install %{lib_options} --prefix %{buildroot}/usr || { cat build.log || true; exit 1; }
 %endif
 
+# Fix Fedora 42+ ncurses-term conflict
+%if 0%{?fedora} >= 42
+rm -f %{buildroot}%{_datadir}/terminfo/g/%{name}
+%endif
+
 %fdupes %{buildroot}%{_datadir}
 
 %check
@@ -281,6 +286,7 @@ desktop-file-validate %{buildroot}%{_datadir}/applications/%{project_id}.desktop
 %license LICENSE
 %{_bindir}/%{name}
 %{_datadir}/applications/%{project_id}.desktop
+%{_datadir}/metainfo/%{project_id}.metainfo.xml
 %{_datadir}/kio/servicemenus/%{project_id}.desktop
 %{_iconsdir}/hicolor/*/apps/%{project_id}.png
 %{_mandir}/man{1,5}/%{name}.*
