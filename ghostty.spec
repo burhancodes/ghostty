@@ -218,6 +218,7 @@ Summary:        Terminfo files for %{name}
 BuildArch:      noarch
 Requires:       %{name} = %{version}-%{release}
 Requires:       ncurses-base
+Supplements:    (%{name} = %{version}-%{release} and terminfo)
 
 %description    terminfo
 %{project_summary}.
@@ -315,9 +316,11 @@ desktop-file-validate %{buildroot}%{_datadir}/applications/%{project_id}.desktop
 
 %files nautilus
 %{_datadir}/nautilus-python/extensions/%{name}.py
-
+# Fix Fedora 42 ncurses-term conflict.
 %files terminfo
+%if 0%{?fedora} < 42
 %{_datadir}/terminfo/g/%{name}
+%endif
 %{_datadir}/terminfo/x/xterm-%{name}
 
 %files themes
