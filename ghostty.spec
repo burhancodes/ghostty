@@ -8,6 +8,8 @@
 %global project_id          com.mitchellh.ghostty
 %global project_summary     Fast, native, feature-rich terminal emulator pushing modern features
 
+%define debug_package %{nil}
+
 %global build_options %{shrink:
     --summary all
     -Doptimize=ReleaseFast
@@ -26,7 +28,6 @@
     -Dsentry=false
     -Demit-terminfo=false
     -Demit-termcap=false
-    -Dbuild-id=true
 }
 
 %global gtk_options %{shrink:
@@ -264,8 +265,6 @@ export SHELL=/bin/bash
 /usr/bin/zig build install %{lib_options} --prefix %{buildroot}/usr || { cat build.log || true; exit 1; }
 %endif
 
-# Skip debug extraction
-%define _find_debuginfo_opts -g
 %fdupes %{buildroot}%{_datadir}
 
 %check
