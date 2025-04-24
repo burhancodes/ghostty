@@ -15,6 +15,7 @@
 %global build_options %{shrink:
     --summary all
     -Doptimize=ReleaseFast
+    -Dcpu=baseline
     -fno-sys=glslang
     -fsys=gtk4-layer-shell
     -fsys=simdutf
