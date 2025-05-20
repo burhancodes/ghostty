@@ -58,11 +58,11 @@ ExcludeArch:    %{ix86}
 
 BuildRequires:  zig >= 0.14.0
 BuildRequires:  git, gcc, pkg-config, fdupes, desktop-file-utils, pandoc-cli
-BuildRequires:  pkgconfig(simdutf) >= 5.2.8
 BuildRequires:  pkgconfig(bzip2)
 BuildRequires:  pkgconfig(libxml-2.0)
 BuildRequires:  pkgconfig(libadwaita-1)
 
+BuildRequires:  simdutf-devel
 BuildRequires:  pixman-devel
 BuildRequires:  freetype-devel
 BuildRequires:  fontconfig-devel
