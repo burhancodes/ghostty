@@ -40,6 +40,7 @@ const Window = @import("Window.zig");
 const ConfigErrorsDialog = @import("ConfigErrorsDialog.zig");
 const ClipboardConfirmationWindow = @import("ClipboardConfirmationWindow.zig");
 const CloseDialog = @import("CloseDialog.zig");
+const GlobalShortcuts = @import("GlobalShortcuts.zig");
 const Split = @import("Split.zig");
 const inspector = @import("inspector.zig");
 const key = @import("key.zig");
@@ -94,6 +95,8 @@ css_provider: *gtk.CssProvider,
 
 /// Providers for loading custom stylesheets defined by user
 custom_css_providers: std.ArrayListUnmanaged(*gtk.CssProvider) = .{},
+
+global_shortcuts: ?GlobalShortcuts,
 
 /// The timer used to quit the application after the last window is closed.
 quit_timer: union(enum) {
@@ -422,6 +425,7 @@ pub fn init(core_app: *CoreApp, opts: Options) !App {
         // our "activate" call above will open a window.
         .running = gio_app.getIsRemote() == 0,
         .css_provider = css_provider,
+        .global_shortcuts = .init(core_app.alloc, gio_app),
     };
 }
 
@@ -442,6 +446,8 @@ pub fn terminate(self: *App) void {
     self.custom_css_providers.deinit(self.core_app.alloc);
 
     self.winproto.deinit(self.core_app.alloc);
+
+    if (self.global_shortcuts) |*shortcuts| shortcuts.deinit();
 
     self.config.deinit();
 }
@@ -492,11 +498,11 @@ pub fn performAction(
         .toggle_quick_terminal => return try self.toggleQuickTerminal(),
         .secure_input => self.setSecureInput(target, value),
         .ring_bell => try self.ringBell(target),
+        .toggle_command_palette => try self.toggleCommandPalette(target),
 
         // Unimplemented
         .close_all_windows,
         .float_window,
-        .toggle_command_palette,
         .toggle_visibility,
         .cell_size,
         .key_sequence,
@@ -504,6 +510,7 @@ pub fn performAction(
         .renderer_health,
         .color_change,
         .reset_window_size,
+        .check_for_updates,
         => {
             log.warn("unimplemented action={}", .{action});
             return false;
@@ -750,7 +757,7 @@ fn toggleWindowDecorations(
         .surface => |v| {
             const window = v.rt_surface.container.window() orelse {
                 log.info(
-                    "toggleFullscreen invalid for container={s}",
+                    "toggleWindowDecorations invalid for container={s}",
                     .{@tagName(v.rt_surface.container)},
                 );
                 return;
@@ -789,6 +796,23 @@ fn ringBell(_: *App, target: apprt.Target) !void {
     switch (target) {
         .app => {},
         .surface => |surface| try surface.rt_surface.ringBell(),
+    }
+}
+
+fn toggleCommandPalette(_: *App, target: apprt.Target) !void {
+    switch (target) {
+        .app => {},
+        .surface => |surface| {
+            const window = surface.rt_surface.container.window() orelse {
+                log.info(
+                    "toggleCommandPalette invalid for container={s}",
+                    .{@tagName(surface.rt_surface.container)},
+                );
+                return;
+            };
+
+            window.toggleCommandPalette();
+        },
     }
 }
 
@@ -1012,6 +1036,12 @@ fn syncConfigChanges(self: *App, window: ?*Window) !void {
     ConfigErrorsDialog.maybePresent(self, window);
     try self.syncActionAccelerators();
 
+    if (self.global_shortcuts) |*shortcuts| {
+        shortcuts.refreshSession(self) catch |err| {
+            log.warn("failed to refresh global shortcuts={}", .{err});
+        };
+    }
+
     // Load our runtime and custom CSS. If this fails then our window is just stuck
     // with the old CSS but we don't want to fail the entire sync operation.
     self.loadRuntimeCss() catch |err| switch (err) {
@@ -1030,6 +1060,7 @@ fn syncActionAccelerators(self: *App) !void {
     try self.syncActionAccelerator("app.open-config", .{ .open_config = {} });
     try self.syncActionAccelerator("app.reload-config", .{ .reload_config = {} });
     try self.syncActionAccelerator("win.toggle-inspector", .{ .inspector = .toggle });
+    try self.syncActionAccelerator("win.toggle-command-palette", .toggle_command_palette);
     try self.syncActionAccelerator("win.close", .{ .close_window = {} });
     try self.syncActionAccelerator("win.new-window", .{ .new_window = {} });
     try self.syncActionAccelerator("win.new-tab", .{ .new_tab = {} });

@@ -455,8 +455,6 @@ pub const Action = union(enum) {
     /// that lets you see what actions you can perform, their associated
     /// keybindings (if any), a search bar to filter the actions, and
     /// the ability to then execute the action.
-    ///
-    /// This only works on macOS.
     toggle_command_palette,
 
     /// Toggle the "quick" terminal. The quick terminal is a terminal that
@@ -508,6 +506,11 @@ pub const Action = union(enum) {
     ///
     /// This currently only works on macOS.
     toggle_visibility,
+
+    /// Check for updates.
+    ///
+    /// This currently only works on macOS.
+    check_for_updates,
 
     /// Quit ghostty.
     quit,
@@ -791,6 +794,7 @@ pub const Action = union(enum) {
             .quit,
             .toggle_quick_terminal,
             .toggle_visibility,
+            .check_for_updates,
             => .app,
 
             // These are app but can be special-cased in a surface context.

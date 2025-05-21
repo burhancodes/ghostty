@@ -474,6 +474,21 @@ foreground: Color = .{ .r = 0xFF, .g = 0xFF, .b = 0xFF },
 /// selection color will vary across the selection.
 @"selection-invert-fg-bg": bool = false,
 
+/// Whether to clear selected text when typing. This defaults to `true`.
+/// This is typical behavior for most terminal emulators as well as
+/// text input fields. If you set this to `false`, then the selected text
+/// will not be cleared when typing.
+///
+/// "Typing" is specifically defined as any non-modifier (shift, control,
+/// alt, etc.) keypress that produces data to be sent to the application
+/// running within the terminal (e.g. the shell). Additionally, selection
+/// is cleared when any preedit or composition state is started (e.g.
+/// when typing languages such as Japanese).
+///
+/// If this is `false`, then the selection can still be manually
+/// cleared by clicking once or by pressing `escape`.
+@"selection-clear-on-typing": bool = true,
+
 /// The minimum contrast ratio between the foreground and background colors.
 /// The contrast ratio is a value between 1 and 21. A value of 1 allows for no
 /// contrast (e.g. black on black). This value is the contrast ratio as defined
@@ -1110,12 +1125,33 @@ class: ?[:0]const u8 = null,
 /// `global:unconsumed:ctrl+a=reload_config` will make the keybind global
 /// and not consume the input to reload the config.
 ///
-/// Note: `global:` is only supported on macOS. On macOS,
-/// this feature requires accessibility permissions to be granted to Ghostty.
-/// When a `global:` keybind is specified and Ghostty is launched or reloaded,
-/// Ghostty will attempt to request these permissions. If the permissions are
-/// not granted, the keybind will not work. On macOS, you can find these
-/// permissions in System Preferences -> Privacy & Security -> Accessibility.
+/// Note: `global:` is only supported on macOS and certain Linux platforms.
+///
+/// On macOS, this feature requires accessibility permissions to be granted
+/// to Ghostty. When a `global:` keybind is specified and Ghostty is launched
+/// or reloaded, Ghostty will attempt to request these permissions.
+/// If the permissions are not granted, the keybind will not work. On macOS,
+/// you can find these permissions in System Preferences -> Privacy & Security
+/// -> Accessibility.
+///
+/// On Linux, you need a desktop environment that implements the
+/// [Global Shortcuts](https://flatpak.github.io/xdg-desktop-portal/docs/doc-org.freedesktop.portal.GlobalShortcuts.html)
+/// protocol as a part of its XDG desktop protocol implementation.
+/// Desktop environments that are known to support (or not support)
+/// global shortcuts include:
+///
+///  - Users using KDE Plasma (since [5.27](https://kde.org/announcements/plasma/5/5.27.0/#wayland))
+///    and GNOME (since [48](https://release.gnome.org/48/#and-thats-not-all)) should be able
+///    to use global shortcuts with little to no configuration.
+///
+///  - Some manual configuration is required on Hyprland. Consult the steps
+///    outlined on the [Hyprland Wiki](https://wiki.hyprland.org/Configuring/Binds/#dbus-global-shortcuts)
+///    to set up global shortcuts correctly.
+///    (Important: [`xdg-desktop-portal-hyprland`](https://wiki.hyprland.org/Hypr-Ecosystem/xdg-desktop-portal-hyprland/)
+///    must also be installed!)
+///
+///  - Notably, global shortcuts have not been implemented on wlroots-based
+///    compositors like Sway (see [upstream issue](https://github.com/emersion/xdg-desktop-portal-wlr/issues/240)).
 keybind: Keybinds = .{},
 
 /// Horizontal window padding. This applies padding between the terminal cells
@@ -1890,8 +1926,10 @@ keybind: Keybinds = .{},
 /// open terminals.
 @"custom-shader-animation": CustomShaderAnimation = .true,
 
-/// The list of enabled features that are activated after encountering
-/// a bell character.
+/// Bell features to enable if bell support is available in your runtime. Not
+/// all features are available on all runtimes. The format of this is a list of
+/// features to enable separated by commas. If you prefix a feature with `no-`
+/// then it is disabled. If you omit a feature, its default value is used.
 ///
 /// Valid values are:
 ///
@@ -1901,16 +1939,35 @@ keybind: Keybinds = .{},
 ///    This could result in an audiovisual effect, a notification, or something
 ///    else entirely. Changing these effects require altering system settings:
 ///    for instance under the "Sound > Alert Sound" setting in GNOME,
-///    or the "Accessibility > System Bell" settings in KDE Plasma.
+///    or the "Accessibility > System Bell" settings in KDE Plasma. (GTK only)
 ///
-///    On macOS this has no affect.
+///  * `audio`
+///
+///    Play a custom sound. (GTK only)
+///
+/// Example: `audio`, `no-audio`, `system`, `no-system`:
 ///
 /// On macOS, if the app is unfocused, it will bounce the app icon in the dock
 /// once. Additionally, the title of the window with the alerted terminal
 /// surface will contain a bell emoji (🔔) until the terminal is focused
 /// or a key is pressed. These are not currently configurable since they're
 /// considered unobtrusive.
+///
+/// By default, no bell features are enabled.
 @"bell-features": BellFeatures = .{},
+
+/// If `audio` is an enabled bell feature, this is a path to an audio file. If
+/// the path is not absolute, it is considered relative to the directory of the
+/// configuration file that it is referenced from, or from the current working
+/// directory if this is used as a CLI flag. The path may be prefixed with `~/`
+/// to reference the user's home directory. (GTK only)
+@"bell-audio-path": ?Path = null,
+
+/// If `audio` is an enabled bell feature, this is the volume to play the audio
+/// file at (relative to the system volume). This is a floating point number
+/// ranging from 0.0 (silence) to 1.0 (as loud as possible). The default is 0.5.
+/// (GTK only)
+@"bell-audio-volume": f64 = 0.5,
 
 /// Control the in-app notifications that Ghostty shows.
 ///
@@ -4736,6 +4793,13 @@ pub const Keybinds = struct {
             .{ .toggle_split_zoom = {} },
         );
 
+        // Toggle command palette, matches VSCode
+        try self.set.put(
+            alloc,
+            .{ .key = .{ .unicode = 'p' }, .mods = inputpkg.ctrlOrSuper(.{ .shift = true }) },
+            .toggle_command_palette,
+        );
+
         // Mac-specific keyboard bindings.
         if (comptime builtin.target.os.tag.isDarwin()) {
             try self.set.put(
@@ -4906,13 +4970,6 @@ pub const Keybinds = struct {
                 alloc,
                 .{ .key = .{ .physical = .arrow_down }, .mods = .{ .super = true } },
                 .{ .jump_to_prompt = 1 },
-            );
-
-            // Toggle command palette, matches VSCode
-            try self.set.put(
-                alloc,
-                .{ .key = .{ .unicode = 'p' }, .mods = .{ .super = true, .shift = true } },
-                .{ .toggle_command_palette = {} },
             );
 
             // Inspector, matching Chromium
@@ -5765,6 +5822,7 @@ pub const AppNotifications = packed struct {
 /// See bell-features
 pub const BellFeatures = packed struct {
     system: bool = false,
+    audio: bool = false,
 };
 
 /// See mouse-shift-capture
