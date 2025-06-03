@@ -410,7 +410,7 @@ pub const renamed = std.StaticStringMap([]const u8).initComptime(&.{
 /// include path separators unless it is an absolute pathname.
 ///
 /// The first directory is the `themes` subdirectory of your Ghostty
-/// configuration directory. This is `$XDG_CONFIG_DIR/ghostty/themes` or
+/// configuration directory. This is `$XDG_CONFIG_HOME/ghostty/themes` or
 /// `~/.config/ghostty/themes`.
 ///
 /// The second directory is the `themes` subdirectory of the Ghostty resources
@@ -1808,6 +1808,34 @@ keybind: Keybinds = .{},
 /// On Linux the behavior is always equivalent to `move`.
 @"quick-terminal-space-behavior": QuickTerminalSpaceBehavior = .move,
 
+/// Determines under which circumstances that the quick terminal should receive
+/// keyboard input. See the corresponding [Wayland documentation](https://wayland.app/protocols/wlr-layer-shell-unstable-v1#zwlr_layer_surface_v1:enum:keyboard_interactivity)
+/// for a more detailed explanation of the behavior of each option.
+///
+/// > [!NOTE]
+/// > The exact behavior of each option may differ significantly across
+/// > compositors -- experiment with them on your system to find one that
+/// > suits your liking!
+///
+/// Valid values are:
+///
+///  * `none`
+///
+///    The quick terminal will not receive any keyboard input.
+///
+///  * `on-demand` (default)
+///
+///    The quick terminal would only receive keyboard input when it is focused.
+///
+///  * `exclusive`
+///
+///    The quick terminal will always receive keyboard input, even when another
+///    window is currently focused.
+///
+/// Only has an effect on Linux Wayland.
+/// On macOS the behavior is always equivalent to `on-demand`.
+@"quick-terminal-keyboard-interactivity": QuickTerminalKeyboardInteractivity = .@"on-demand",
+
 /// Whether to enable shell integration auto-injection or not. Shell integration
 /// greatly enhances the terminal experience by enabling a number of features:
 ///
@@ -2400,6 +2428,23 @@ term: []const u8 = "xterm-ghostty",
 /// running. Defaults to an empty string if not set.
 @"enquiry-response": []const u8 = "",
 
+/// The mechanism used to launch Ghostty. This should generally not be
+/// set by users, see the warning below.
+///
+/// WARNING: This is a low-level configuration that is not intended to be
+/// modified by users. All the values will be automatically detected as they
+/// are needed by Ghostty. This is only here in case our detection logic is
+/// incorrect for your environment or for developers who want to test
+/// Ghostty's behavior in different, forced environments.
+///
+/// This is set using the standard `no-[value]`, `[value]` syntax separated
+/// by commas. Example: "no-desktop,systemd". Specific details about the
+/// available values are documented on LaunchProperties in the code. Since
+/// this isn't intended to be modified by users, the documentation is
+/// lighter than the other configurations and users are expected to
+/// refer to the code for details.
+@"launched-from": ?LaunchSource = null,
+
 /// Configures the low-level API to use for async IO, eventing, etc.
 ///
 /// Most users should leave this set to `auto`. This will automatically detect
@@ -2531,7 +2576,7 @@ pub fn load(alloc_gpa: Allocator) !Config {
 pub fn default(alloc_gpa: Allocator) Allocator.Error!Config {
     // Build up our basic config
     var result: Config = .{
-        ._arena = ArenaAllocator.init(alloc_gpa),
+        ._arena = .init(alloc_gpa),
     };
     errdefer result.deinit();
     const alloc = result._arena.?.allocator();
@@ -2722,19 +2767,18 @@ pub fn loadCliArgs(self: *Config, alloc_gpa: Allocator) !void {
     // can replay if we are discarding the default files.
     const replay_len_start = self._replay_steps.items.len;
 
-    // Keep track of font families because if they are set from the CLI
-    // then we clear the previously set values. This avoids a UX oddity
-    // where on the CLI you have to specify `font-family=""` to clear the
-    // font families before setting a new one.
+    // font-family settings set via the CLI overwrite any prior values
+    // rather than append. This avoids a UX oddity where you have to
+    // specify `font-family=""` to clear the font families.
     const fields = &[_][]const u8{
         "font-family",
         "font-family-bold",
         "font-family-italic",
         "font-family-bold-italic",
     };
-    var counter: [fields.len]usize = undefined;
-    inline for (fields, 0..) |field, i| {
-        counter[i] = @field(self, field).list.items.len;
+    inline for (fields) |field| @field(self, field).overwrite_next = true;
+    defer {
+        inline for (fields) |field| @field(self, field).overwrite_next = false;
     }
 
     // Initialize our CLI iterator.
@@ -2759,28 +2803,6 @@ pub fn loadCliArgs(self: *Config, alloc_gpa: Allocator) !void {
         try new_config.loadIter(alloc_gpa, &it);
         self.deinit();
         self.* = new_config;
-    } else {
-        // If any of our font family settings were changed, then we
-        // replace the entire list with the new list.
-        inline for (fields, 0..) |field, i| {
-            const v = &@field(self, field);
-
-            // The list can be empty if it was reset, i.e. --font-family=""
-            if (v.list.items.len > 0) {
-                const len = v.list.items.len - counter[i];
-                if (len > 0) {
-                    // Note: we don't have to worry about freeing the memory
-                    // that we overwrite or cut off here because its all in
-                    // an arena.
-                    v.list.replaceRangeAssumeCapacity(
-                        0,
-                        len,
-                        v.list.items[counter[i]..],
-                    );
-                    v.list.items.len = len;
-                }
-            }
-        }
     }
 
     // Any paths referenced from the CLI are relative to the current working
@@ -3106,6 +3128,11 @@ pub fn finalize(self: *Config) !void {
 
     const alloc = self._arena.?.allocator();
 
+    // Ensure our launch source is properly set.
+    if (self.@"launched-from" == null) {
+        self.@"launched-from" = .detect();
+    }
+
     // If we have a font-family set and don't set the others, default
     // the others to the font family. This way, if someone does
     // --font-family=foo, then we try to get the stylized versions of
@@ -3130,14 +3157,11 @@ pub fn finalize(self: *Config) !void {
     }
 
     // The default for the working directory depends on the system.
-    const wd = self.@"working-directory" orelse wd: {
+    const wd = self.@"working-directory" orelse switch (self.@"launched-from".?) {
         // If we have no working directory set, our default depends on
-        // whether we were launched from the desktop or CLI.
-        if (internal_os.launchedFromDesktop()) {
-            break :wd "home";
-        }
-
-        break :wd "inherit";
+        // whether we were launched from the desktop or elsewhere.
+        .desktop => "home",
+        .cli, .dbus, .systemd => "inherit",
     };
 
     // If we are missing either a command or home directory, we need
@@ -3160,7 +3184,10 @@ pub fn finalize(self: *Config) !void {
                 // If we were launched from the desktop, our SHELL env var
                 // will represent our SHELL at login time. We want to use the
                 // latest shell from /etc/passwd or directory services.
-                if (internal_os.launchedFromDesktop()) break :shell_env;
+                switch (self.@"launched-from".?) {
+                    .desktop, .dbus, .systemd => break :shell_env,
+                    .cli => {},
+                }
 
                 if (std.process.getEnvVarOwned(alloc, "SHELL")) |value| {
                     log.info("default shell source=env value={s}", .{value});
@@ -3332,7 +3359,7 @@ pub fn parseManuallyHook(
 /// be deallocated while shallow clones exist.
 pub fn shallowClone(self: *const Config, alloc_gpa: Allocator) Config {
     var result = self.*;
-    result._arena = ArenaAllocator.init(alloc_gpa);
+    result._arena = .init(alloc_gpa);
     return result;
 }
 
@@ -4172,6 +4199,11 @@ pub const RepeatableString = struct {
     // Allocator for the list is the arena for the parent config.
     list: std.ArrayListUnmanaged([:0]const u8) = .{},
 
+    // If true, then the next value will clear the list and start over
+    // rather than append. This is a bit of a hack but is here to make
+    // the font-family set of configurations work with CLI parsing.
+    overwrite_next: bool = false,
+
     pub fn parseCLI(self: *Self, alloc: Allocator, input: ?[]const u8) !void {
         const value = input orelse return error.ValueRequired;
 
@@ -4179,6 +4211,12 @@ pub const RepeatableString = struct {
         if (value.len == 0) {
             self.list.clearRetainingCapacity();
             return;
+        }
+
+        // If we're overwriting then we clear before appending
+        if (self.overwrite_next) {
+            self.list.clearRetainingCapacity();
+            self.overwrite_next = false;
         }
 
         const copy = try alloc.dupeZ(u8, value);
@@ -4245,6 +4283,24 @@ pub const RepeatableString = struct {
 
         try list.parseCLI(alloc, "");
         try testing.expectEqual(@as(usize, 0), list.list.items.len);
+    }
+
+    test "parseCLI overwrite" {
+        const testing = std.testing;
+        var arena = ArenaAllocator.init(testing.allocator);
+        defer arena.deinit();
+        const alloc = arena.allocator();
+
+        var list: Self = .{};
+        try list.parseCLI(alloc, "A");
+
+        // Set our overwrite flag
+        list.overwrite_next = true;
+
+        try list.parseCLI(alloc, "B");
+        try testing.expectEqual(@as(usize, 1), list.list.items.len);
+        try list.parseCLI(alloc, "C");
+        try testing.expectEqual(@as(usize, 2), list.list.items.len);
     }
 
     test "formatConfig empty" {
@@ -5975,7 +6031,7 @@ pub const QuickTerminalSize = struct {
             it.next() orelse return error.ValueRequired,
             cli.args.whitespace,
         );
-        self.primary = try Size.parse(primary);
+        self.primary = try .parse(primary);
 
         self.secondary = secondary: {
             const secondary = std.mem.trim(
@@ -5983,7 +6039,7 @@ pub const QuickTerminalSize = struct {
                 it.next() orelse break :secondary null,
                 cli.args.whitespace,
             );
-            break :secondary try Size.parse(secondary);
+            break :secondary try .parse(secondary);
         };
 
         if (it.next()) |_| return error.TooManyArguments;
@@ -6136,6 +6192,13 @@ pub const QuickTerminalScreen = enum {
 pub const QuickTerminalSpaceBehavior = enum {
     remain,
     move,
+};
+
+/// See quick-terminal-keyboard-interactivity
+pub const QuickTerminalKeyboardInteractivity = enum {
+    none,
+    @"on-demand",
+    exclusive,
 };
 
 /// See grapheme-width-method
@@ -6551,6 +6614,34 @@ pub const Duration = struct {
             std.time.ns_per_ms,
         ) catch std.math.maxInt(c_uint);
         return std.math.cast(c_uint, ms) orelse std.math.maxInt(c_uint);
+    }
+};
+
+pub const LaunchSource = enum {
+    /// Ghostty was launched via the CLI. This is the default if
+    /// no other source is detected.
+    cli,
+
+    /// Ghostty was launched in a desktop environment (not via the CLI).
+    /// This is used to determine some behaviors such as how to read
+    /// settings, whether single instance defaults to true, etc.
+    desktop,
+
+    /// Ghostty was started via dbus activation.
+    dbus,
+
+    /// Ghostty was started via systemd activation.
+    systemd,
+
+    pub fn detect() LaunchSource {
+        return if (internal_os.launchedFromDesktop())
+            .desktop
+        else if (internal_os.launchedByDbusActivation())
+            .dbus
+        else if (internal_os.launchedBySystemd())
+            .systemd
+        else
+            .cli;
     }
 };
 

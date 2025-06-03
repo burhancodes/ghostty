@@ -423,7 +423,7 @@ pub const Surface = struct {
     pub fn init(self: *Surface, app: *App, opts: Options) !void {
         self.* = .{
             .app = app,
-            .platform = try Platform.init(opts.platform_tag, opts.platform),
+            .platform = try .init(opts.platform_tag, opts.platform),
             .userdata = opts.userdata,
             .core_surface = undefined,
             .content_scale = .{
@@ -522,7 +522,7 @@ pub const Surface = struct {
         const alloc = self.app.core_app.alloc;
         const inspector = try alloc.create(Inspector);
         errdefer alloc.destroy(inspector);
-        inspector.* = try Inspector.init(self);
+        inspector.* = try .init(self);
         self.inspector = inspector;
         return inspector;
     }
@@ -842,7 +842,10 @@ pub const Surface = struct {
             // our translation settings for Ghostty. If we aren't from
             // the desktop then we didn't set our LANGUAGE var so we
             // don't need to remove it.
-            if (internal_os.launchedFromDesktop()) env.remove("LANGUAGE");
+            switch (self.app.config.@"launched-from".?) {
+                .desktop => env.remove("LANGUAGE"),
+                .dbus, .systemd, .cli => {},
+            }
         }
 
         return env;
@@ -1180,7 +1183,7 @@ pub const CAPI = struct {
         // Create our runtime app
         var app = try global.alloc.create(App);
         errdefer global.alloc.destroy(app);
-        app.* = try App.init(core_app, config, opts.*);
+        app.* = try .init(core_app, config, opts.*);
         errdefer app.terminate();
 
         return app;
@@ -1949,7 +1952,7 @@ pub const CAPI = struct {
         }
 
         export fn ghostty_inspector_metal_init(ptr: *Inspector, device: objc.c.id) bool {
-            return ptr.initMetal(objc.Object.fromId(device));
+            return ptr.initMetal(.fromId(device));
         }
 
         export fn ghostty_inspector_metal_render(
@@ -1958,8 +1961,8 @@ pub const CAPI = struct {
             descriptor: objc.c.id,
         ) void {
             return ptr.renderMetal(
-                objc.Object.fromId(command_buffer),
-                objc.Object.fromId(descriptor),
+                .fromId(command_buffer),
+                .fromId(descriptor),
             ) catch |err| {
                 log.err("error rendering inspector err={}", .{err});
                 return;

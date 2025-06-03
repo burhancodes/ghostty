@@ -90,6 +90,7 @@ pub const DerivedConfig = struct {
     quick_terminal_position: configpkg.Config.QuickTerminalPosition,
     quick_terminal_size: configpkg.Config.QuickTerminalSize,
     quick_terminal_autohide: bool,
+    quick_terminal_keyboard_interactivity: configpkg.Config.QuickTerminalKeyboardInteractivity,
 
     maximize: bool,
     fullscreen: bool,
@@ -109,6 +110,7 @@ pub const DerivedConfig = struct {
             .quick_terminal_position = config.@"quick-terminal-position",
             .quick_terminal_size = config.@"quick-terminal-size",
             .quick_terminal_autohide = config.@"quick-terminal-autohide",
+            .quick_terminal_keyboard_interactivity = config.@"quick-terminal-keyboard-interactivity",
 
             .maximize = config.maximize,
             .fullscreen = config.fullscreen,
@@ -136,7 +138,7 @@ pub fn init(self: *Window, app: *App) !void {
     self.* = .{
         .app = app,
         .last_config = @intFromPtr(&app.config),
-        .config = DerivedConfig.init(&app.config),
+        .config = .init(&app.config),
         .window = undefined,
         .headerbar = undefined,
         .tab_overview = null,
@@ -148,7 +150,7 @@ pub fn init(self: *Window, app: *App) !void {
     };
 
     // Create the window
-    self.window = adw.ApplicationWindow.new(app.app.as(gtk.Application));
+    self.window = .new(app.app.as(gtk.Application));
     const gtk_window = self.window.as(gtk.Window);
     const gtk_widget = self.window.as(gtk.Widget);
     errdefer gtk_window.destroy();
@@ -333,7 +335,7 @@ pub fn init(self: *Window, app: *App) !void {
     }
 
     // Setup our toast overlay if we have one
-    self.toast_overlay = adw.ToastOverlay.new();
+    self.toast_overlay = .new();
     self.toast_overlay.setChild(self.notebook.asWidget());
     box.append(self.toast_overlay.as(gtk.Widget));
 
@@ -463,7 +465,7 @@ pub fn updateConfig(
     if (self.last_config == this_config) return;
     self.last_config = this_config;
 
-    self.config = DerivedConfig.init(config);
+    self.config = .init(config);
 
     // We always resync our appearance whenever the config changes.
     try self.syncAppearance();
@@ -814,11 +816,15 @@ fn gtkWindowNotifyIsActive(
     _: *gobject.ParamSpec,
     self: *Window,
 ) callconv(.c) void {
-    if (!self.isQuickTerminal()) return;
+    self.winproto.setUrgent(false) catch |err| {
+        log.err("failed to unrequest user attention={}", .{err});
+    };
 
-    // Hide when we're unfocused
-    if (self.config.quick_terminal_autohide and self.window.as(gtk.Window).isActive() == 0) {
-        self.toggleVisibility();
+    if (self.isQuickTerminal()) {
+        // Hide when we're unfocused
+        if (self.config.quick_terminal_autohide and self.window.as(gtk.Window).isActive() == 0) {
+            self.toggleVisibility();
+        }
     }
 }
 

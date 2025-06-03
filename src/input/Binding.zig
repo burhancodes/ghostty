@@ -71,7 +71,7 @@ pub const Parser = struct {
         // parse the action now.
         return .{
             .trigger_it = .{ .input = input[0..eql_idx] },
-            .action = try Action.parse(input[eql_idx + 1 ..]),
+            .action = try .parse(input[eql_idx + 1 ..]),
             .flags = flags,
         };
     }
@@ -158,7 +158,7 @@ const SequenceIterator = struct {
         const rem = self.input[self.i..];
         const idx = std.mem.indexOf(u8, rem, ">") orelse rem.len;
         defer self.i += idx + 1;
-        return try Trigger.parse(rem[0..idx]);
+        return try .parse(rem[0..idx]);
     }
 
     /// Returns true if there are no more triggers to parse.
@@ -222,13 +222,20 @@ pub fn lessThan(_: void, lhs: Binding, rhs: Binding) bool {
 
 /// The set of actions that a keybinding can take.
 pub const Action = union(enum) {
-    /// Ignore this key combination, don't send it to the child process, just
-    /// black hole it.
+    /// Ignore this key combination, don't send it to the child process,
+    /// pretend that it never happened at the Ghostty level. The key
+    /// combination may still be processed by the OS or other
+    /// applications.
     ignore,
 
     /// This action is used to flag that the binding should be removed from
     /// the set. This should never exist in an active set and `set.put` has an
     /// assertion to verify this.
+    ///
+    /// This is only able to unbind bindings that were previously
+    /// bound to Ghostty. This cannot unbind bindings that were not
+    /// bound by Ghostty (e.g. bindings set by the OS or some other
+    /// application).
     unbind,
 
     /// Send a CSI sequence. The value should be the CSI sequence without the
@@ -396,6 +403,9 @@ pub const Action = union(enum) {
     /// Example: Toggle inspector visibility
     ///   keybind = cmd+i=inspector:toggle
     inspector: InspectorMode,
+
+    /// Show the GTK inspector.
+    show_gtk_inspector,
 
     /// Open the configuration file in the default OS editor. If your default OS
     /// editor isn't configured then this will fail. Currently, any failures to
@@ -795,6 +805,7 @@ pub const Action = union(enum) {
             .toggle_quick_terminal,
             .toggle_visibility,
             .check_for_updates,
+            .show_gtk_inspector,
             => .app,
 
             // These are app but can be special-cased in a surface context.

@@ -273,7 +273,10 @@ pub fn init(core_app: *CoreApp, opts: Options) !App {
     const single_instance = switch (config.@"gtk-single-instance") {
         .true => true,
         .false => false,
-        .desktop => internal_os.launchedFromDesktop(),
+        .desktop => switch (config.@"launched-from".?) {
+            .desktop, .systemd, .dbus => true,
+            .cli => false,
+        },
     };
 
     // Setup the flags for our application.
@@ -288,7 +291,7 @@ pub fn init(core_app: *CoreApp, opts: Options) !App {
     // can develop Ghostty in Ghostty.
     const app_id: [:0]const u8 = app_id: {
         if (config.class) |class| {
-            if (isValidAppId(class)) {
+            if (gio.Application.idIsValid(class) != 0) {
                 break :app_id class;
             } else {
                 log.warn("invalid 'class' in config, ignoring", .{});
@@ -481,6 +484,7 @@ pub fn performAction(
         .config_change => self.configChange(target, value.config),
         .reload_config => try self.reloadConfig(target, value),
         .inspector => self.controlInspector(target, value),
+        .show_gtk_inspector => self.showGTKInspector(),
         .desktop_notification => self.showDesktopNotification(target, value),
         .set_title => try self.setTitle(target, value),
         .pwd => try self.setPwd(target, value),
@@ -685,6 +689,12 @@ fn controlInspector(
     };
 
     surface.controlInspector(mode);
+}
+
+fn showGTKInspector(
+    _: *const App,
+) void {
+    gtk.Window.setInteractiveDebugging(@intFromBool(true));
 }
 
 fn toggleMaximize(_: *App, target: apprt.Target) void {
@@ -1060,6 +1070,7 @@ fn syncActionAccelerators(self: *App) !void {
     try self.syncActionAccelerator("app.open-config", .{ .open_config = {} });
     try self.syncActionAccelerator("app.reload-config", .{ .reload_config = {} });
     try self.syncActionAccelerator("win.toggle-inspector", .{ .inspector = .toggle });
+    try self.syncActionAccelerator("app.show-gtk-inspector", .show_gtk_inspector);
     try self.syncActionAccelerator("win.toggle-command-palette", .toggle_command_palette);
     try self.syncActionAccelerator("win.close", .{ .close_window = {} });
     try self.syncActionAccelerator("win.new-window", .{ .new_window = {} });
@@ -1655,6 +1666,16 @@ fn gtkActionPresentSurface(
     );
 }
 
+fn gtkActionShowGTKInspector(
+    _: *gio.SimpleAction,
+    _: ?*glib.Variant,
+    self: *App,
+) callconv(.c) void {
+    self.core_app.performAction(self, .show_gtk_inspector) catch |err| {
+        log.err("error showing GTK inspector err={}", .{err});
+    };
+}
+
 /// This is called to setup the action map that this application supports.
 /// This should be called only once on startup.
 fn initActions(self: *App) void {
@@ -1673,6 +1694,7 @@ fn initActions(self: *App) void {
         .{ "open-config", gtkActionOpenConfig, null },
         .{ "reload-config", gtkActionReloadConfig, null },
         .{ "present-surface", gtkActionPresentSurface, t },
+        .{ "show-gtk-inspector", gtkActionShowGTKInspector, null },
     };
     inline for (actions) |entry| {
         const action = gio.SimpleAction.new(entry[0], entry[2]);
@@ -1687,33 +1709,4 @@ fn initActions(self: *App) void {
         const action_map = self.app.as(gio.ActionMap);
         action_map.addAction(action.as(gio.Action));
     }
-}
-
-fn isValidAppId(app_id: [:0]const u8) bool {
-    if (app_id.len > 255 or app_id.len == 0) return false;
-    if (app_id[0] == '.') return false;
-    if (app_id[app_id.len - 1] == '.') return false;
-
-    var hasDot = false;
-    for (app_id) |char| {
-        switch (char) {
-            'a'...'z', 'A'...'Z', '0'...'9', '_', '-' => {},
-            '.' => hasDot = true,
-            else => return false,
-        }
-    }
-    if (!hasDot) return false;
-
-    return true;
-}
-
-test "isValidAppId" {
-    try testing.expect(isValidAppId("foo.bar"));
-    try testing.expect(isValidAppId("foo.bar.baz"));
-    try testing.expect(!isValidAppId("foo"));
-    try testing.expect(!isValidAppId("foo.bar?"));
-    try testing.expect(!isValidAppId("foo."));
-    try testing.expect(!isValidAppId(".foo"));
-    try testing.expect(!isValidAppId(""));
-    try testing.expect(!isValidAppId("foo" ** 86));
 }

@@ -124,6 +124,11 @@ class BaseTerminalController: NSWindowController,
             selector: #selector(ghosttyMaximizeDidToggle(_:)),
             name: .ghosttyMaximizeDidToggle,
             object: nil)
+        center.addObserver(
+            self,
+            selector: #selector(ghosttyDidEqualizeSplits(_:)),
+            name: Ghostty.Notification.didEqualizeSplits,
+            object: nil)
 
         // Listen for local events that we need to know of outside of
         // single surface handlers.
@@ -144,10 +149,8 @@ class BaseTerminalController: NSWindowController,
     ///
     /// Subclasses should call super first.
     func surfaceTreeDidChange(from: Ghostty.SplitNode?, to: Ghostty.SplitNode?) {
-        // If our surface tree becomes nil then ensure all surfaces
-        // in the old tree have closed.
+        // If our surface tree becomes nil then we have no focused surface.
         if (to == nil) {
-            from?.close()
             focusedSurface = nil
         }
     }
@@ -248,6 +251,17 @@ class BaseTerminalController: NSWindowController,
         guard let surfaceView = notification.object as? Ghostty.SurfaceView else { return }
         guard surfaceTree?.contains(view: surfaceView) ?? false else { return }
         window.zoom(nil)
+    }
+    
+    @objc private func ghosttyDidEqualizeSplits(_ notification: Notification) {
+        guard let target = notification.object as? Ghostty.SurfaceView else { return }
+        
+        // Check if target surface is in current controller's tree
+        guard surfaceTree?.contains(view: target) ?? false else { return }
+        
+        if case .split(let container) = surfaceTree {
+            _ = container.equalize()
+        }
     }
 
     // MARK: Local Events
