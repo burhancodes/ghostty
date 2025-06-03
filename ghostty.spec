@@ -57,7 +57,7 @@ ExclusiveArch:  %{zig_arches}
 ExcludeArch:    %{ix86}
 
 BuildRequires:  zig >= 0.14.0
-BuildRequires:  git, gcc, pkg-config, fdupes, desktop-file-utils, pandoc-cli
+BuildRequires:  git, gcc, pkg-config, fdupes, desktop-file-utils, pandoc-cli, libappstream-glib
 BuildRequires:  pkgconfig(bzip2)
 BuildRequires:  pkgconfig(libxml-2.0)
 BuildRequires:  pkgconfig(libadwaita-1)
@@ -281,6 +281,7 @@ export SHELL=/bin/bash
 /usr/bin/zig test %{gtk_options} || { cat test.log || true; exit 0; }
 %endif
 
+appstream-util validate-relax --nonet %{buildroot}%{_metainfodir}/*.xml
 desktop-file-validate %{buildroot}%{_datadir}/applications/%{project_id}.desktop
 
 %files
@@ -292,6 +293,7 @@ desktop-file-validate %{buildroot}%{_datadir}/applications/%{project_id}.desktop
 %{_iconsdir}/hicolor/*/apps/%{project_id}.png
 %{_mandir}/man{1,5}/%{name}.*
 %{_datadir}/locale/*/LC_MESSAGES/%{project_id}.mo
+%{_metainfodir}/*.xml
 
 %if %{with lib}
 %files -n %{library}
