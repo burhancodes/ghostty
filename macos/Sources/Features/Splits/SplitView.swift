@@ -1,5 +1,4 @@
 import SwiftUI
-import Combine
 
 /// A split view shows a left and right (or top and bottom) view with a divider in the middle to do resizing.
 /// The terminlogy "left" and "right" is always used but for vertical splits "left" is "top" and "right" is "bottom".
@@ -13,12 +12,10 @@ struct SplitView<L: View, R: View>: View {
     /// Divider color
     let dividerColor: Color
 
-    /// If set, the split view supports programmatic resizing via events sent via the publisher.
     /// Minimum increment (in points) that this split can be resized by, in
     /// each direction. Both `height` and `width` should be whole numbers
     /// greater than or equal to 1.0
     let resizeIncrements: NSSize
-    let resizePublisher: PassthroughSubject<Double, Never>
 
     /// The left and right views to render.
     let left: L
@@ -45,47 +42,32 @@ struct SplitView<L: View, R: View>: View {
                 left
                     .frame(width: leftRect.size.width, height: leftRect.size.height)
                     .offset(x: leftRect.origin.x, y: leftRect.origin.y)
+                    .accessibilityElement(children: .contain)
+                    .accessibilityLabel(leftPaneLabel)
                 right
                     .frame(width: rightRect.size.width, height: rightRect.size.height)
                     .offset(x: rightRect.origin.x, y: rightRect.origin.y)
+                    .accessibilityElement(children: .contain)
+                    .accessibilityLabel(rightPaneLabel)
                 Divider(direction: direction,
                         visibleSize: splitterVisibleSize,
                         invisibleSize: splitterInvisibleSize,
-                        color: dividerColor)
+                        color: dividerColor,
+                        split: $split)
                     .position(splitterPoint)
                     .gesture(dragGesture(geo.size, splitterPoint: splitterPoint))
             }
-            .onReceive(resizePublisher) { value in
-                resize(for: geo.size, amount: value)
-            }
+            .accessibilityElement(children: .contain)
+            .accessibilityLabel(splitViewLabel)
         }
     }
 
-    /// Initialize a split view. This view isn't programmatically resizable; it can only be resized
-    /// by manually dragging the divider.
-    init(_ direction: SplitViewDirection,
-         _ split: Binding<CGFloat>,
-         dividerColor: Color,
-         @ViewBuilder left: (() -> L),
-         @ViewBuilder right: (() -> R)) {
-        self.init(
-            direction,
-            split,
-            dividerColor: dividerColor,
-            resizeIncrements: .init(width: 1, height: 1),
-            resizePublisher: .init(),
-            left: left,
-            right: right
-        )
-    }
-
-    /// Initialize a split view that supports programmatic resizing.
+    /// Initialize a split view that can be resized by manually dragging the divider.
     init(
         _ direction: SplitViewDirection,
         _ split: Binding<CGFloat>,
         dividerColor: Color,
-        resizeIncrements: NSSize,
-        resizePublisher: PassthroughSubject<Double, Never>,
+        resizeIncrements: NSSize = .init(width: 1, height: 1),
         @ViewBuilder left: (() -> L),
         @ViewBuilder right: (() -> R)
     ) {
@@ -93,23 +75,8 @@ struct SplitView<L: View, R: View>: View {
         self._split = split
         self.dividerColor = dividerColor
         self.resizeIncrements = resizeIncrements
-        self.resizePublisher = resizePublisher
         self.left = left()
         self.right = right()
-    }
-
-    private func resize(for size: CGSize, amount: Double) {
-        let dim: CGFloat
-        switch (direction) {
-        case .horizontal:
-            dim = size.width
-        case .vertical:
-            dim = size.height
-        }
-
-        let pos = split * dim
-        let new = min(max(minSize, pos + amount), dim - minSize)
-        split = new / dim
     }
 
     private func dragGesture(_ size: CGSize, splitterPoint: CGPoint) -> some Gesture {
@@ -175,6 +142,35 @@ struct SplitView<L: View, R: View>: View {
 
         case .vertical:
             return CGPoint(x: size.width / 2, y: leftRect.size.height)
+        }
+    }
+    
+    // MARK: Accessibility
+    
+    private var splitViewLabel: String {
+        switch direction {
+        case .horizontal:
+            return "Horizontal split view"
+        case .vertical:
+            return "Vertical split view"
+        }
+    }
+    
+    private var leftPaneLabel: String {
+        switch direction {
+        case .horizontal:
+            return "Left pane"
+        case .vertical:
+            return "Top pane"
+        }
+    }
+    
+    private var rightPaneLabel: String {
+        switch direction {
+        case .horizontal:
+            return "Right pane"
+        case .vertical:
+            return "Bottom pane"
         }
     }
 }

@@ -1705,6 +1705,52 @@ keybind: Keybinds = .{},
 /// window is ever created. Only implemented on Linux and macOS.
 @"initial-window": bool = true,
 
+/// The duration that undo operations remain available. After this
+/// time, the operation will be removed from the undo stack and
+/// cannot be undone.
+///
+/// The default value is 5 seconds.
+///
+/// This timeout applies per operation, meaning that if you perform
+/// multiple operations, each operation will have its own timeout.
+/// New operations do not reset the timeout of previous operations.
+///
+/// A timeout of zero will effectively disable undo operations. It is
+/// not possible to set an infinite timeout, but you can set a very
+/// large timeout to effectively disable the timeout (on the order of years).
+/// This is highly discouraged, as it will cause the undo stack to grow
+/// indefinitely, memory usage to grow unbounded, and terminal sessions
+/// to never actually quit.
+///
+/// The duration is specified as a series of numbers followed by time units.
+/// Whitespace is allowed between numbers and units. Each number and unit will
+/// be added together to form the total duration.
+///
+/// The allowed time units are as follows:
+///
+///   * `y` - 365 SI days, or 8760 hours, or 31536000 seconds. No adjustments
+///     are made for leap years or leap seconds.
+///   * `d` - one SI day, or 86400 seconds.
+///   * `h` - one hour, or 3600 seconds.
+///   * `m` - one minute, or 60 seconds.
+///   * `s` - one second.
+///   * `ms` - one millisecond, or 0.001 second.
+///   * `us` or `µs` - one microsecond, or 0.000001 second.
+///   * `ns` - one nanosecond, or 0.000000001 second.
+///
+/// Examples:
+///   * `1h30m`
+///   * `45s`
+///
+/// Units can be repeated and will be added together. This means that
+/// `1h1h` is equivalent to `2h`. This is confusing and should be avoided.
+/// A future update may disallow this.
+///
+/// This configuration is only supported on macOS. Linux doesn't
+/// support undo operations at all so this configuration has no
+/// effect.
+@"undo-timeout": Duration = .{ .duration = 5 * std.time.ns_per_s },
+
 /// The position of the "quick" terminal window. To learn more about the
 /// quick terminal, see the documentation for the `toggle_quick_terminal`
 /// binding action.
@@ -1963,7 +2009,7 @@ keybind: Keybinds = .{},
 ///
 ///  * `system`
 ///
-///    Instructs the system to notify the user using built-in system functions.
+///    Instruct the system to notify the user using built-in system functions.
 ///    This could result in an audiovisual effect, a notification, or something
 ///    else entirely. Changing these effects require altering system settings:
 ///    for instance under the "Sound > Alert Sound" setting in GNOME,
@@ -1973,15 +2019,31 @@ keybind: Keybinds = .{},
 ///
 ///    Play a custom sound. (GTK only)
 ///
-/// Example: `audio`, `no-audio`, `system`, `no-system`:
+///  * `attention` *(enabled by default)*
 ///
-/// On macOS, if the app is unfocused, it will bounce the app icon in the dock
-/// once. Additionally, the title of the window with the alerted terminal
-/// surface will contain a bell emoji (🔔) until the terminal is focused
-/// or a key is pressed. These are not currently configurable since they're
-/// considered unobtrusive.
+///    Request the user's attention when Ghostty is unfocused, until it has
+///    received focus again. On macOS, this will bounce the app icon in the
+///    dock once. On Linux, the behavior depends on the desktop environment
+///    and/or the window manager/compositor:
 ///
-/// By default, no bell features are enabled.
+///    - On KDE, the background of the desktop icon in the task bar would be
+///      highlighted;
+///
+///    - On GNOME, you may receive a notification that, when clicked, would
+///      bring the Ghostty window into focus;
+///
+///    - On Sway, the window may be decorated with a distinctly colored border;
+///
+///    - On other systems this may have no effect at all.
+///
+///  * `title` *(enabled by default)*
+///
+///    Prepend a bell emoji (🔔) to the title of the alerted surface until the
+///    terminal is re-focused or interacted with (such as on keyboard input).
+///
+///    Only implemented on macOS.
+///
+/// Example: `audio`, `no-audio`, `system`, `no-system`
 @"bell-features": BellFeatures = .{},
 
 /// If `audio` is an enabled bell feature, this is a path to an audio file. If
@@ -2052,6 +2114,25 @@ keybind: Keybinds = .{},
 /// time the window is made fullscreen. If a window is already fullscreen,
 /// it will retain the previous setting until fullscreen is exited.
 @"macos-non-native-fullscreen": NonNativeFullscreen = .false,
+
+/// Whether the window buttons in the macOS titlebar are visible. The window
+/// buttons are the colored buttons in the upper left corner of most macOS apps,
+/// also known as the traffic lights, that allow you to close, miniaturize, and
+/// zoom the window.
+///
+/// This setting has no effect when `window-decoration = false` or
+/// `macos-titlebar-style = hidden`, as the window buttons are always hidden in
+/// these modes.
+///
+/// Valid values are:
+///
+///   * `visible` - Show the window buttons.
+///   * `hidden` - Hide the window buttons.
+///
+/// The default value is `visible`.
+///
+/// Changing this option at runtime only applies to new windows.
+@"macos-window-buttons": MacWindowButtons = .visible,
 
 /// The style of the macOS titlebar. Available values are: "native",
 /// "transparent", "tabs", and "hidden".
@@ -4875,6 +4956,26 @@ pub const Keybinds = struct {
                 .{ .select_all = {} },
             );
 
+            // Undo/redo
+            try self.set.putFlags(
+                alloc,
+                .{ .key = .{ .unicode = 't' }, .mods = .{ .super = true, .shift = true } },
+                .{ .undo = {} },
+                .{ .performable = true },
+            );
+            try self.set.putFlags(
+                alloc,
+                .{ .key = .{ .unicode = 'z' }, .mods = .{ .super = true } },
+                .{ .undo = {} },
+                .{ .performable = true },
+            );
+            try self.set.putFlags(
+                alloc,
+                .{ .key = .{ .unicode = 'z' }, .mods = .{ .super = true, .shift = true } },
+                .{ .redo = {} },
+                .{ .performable = true },
+            );
+
             // Viewport scrolling
             try self.set.put(
                 alloc,
@@ -5803,6 +5904,12 @@ pub const WindowColorspace = enum {
     @"display-p3",
 };
 
+/// See macos-window-buttons
+pub const MacWindowButtons = enum {
+    visible,
+    hidden,
+};
+
 /// See macos-titlebar-style
 pub const MacTitlebarStyle = enum {
     native,
@@ -5879,6 +5986,8 @@ pub const AppNotifications = packed struct {
 pub const BellFeatures = packed struct {
     system: bool = false,
     audio: bool = false,
+    attention: bool = true,
+    title: bool = true,
 };
 
 /// See mouse-shift-capture
@@ -6528,7 +6637,7 @@ pub const Duration = struct {
             if (remaining.len == 0) break;
 
             // Find the longest number
-            const number = number: {
+            const number: u64 = number: {
                 var prev_number: ?u64 = null;
                 var prev_remaining: ?[]const u8 = null;
                 for (1..remaining.len + 1) |index| {
@@ -6542,8 +6651,17 @@ pub const Duration = struct {
                 break :number prev_number;
             } orelse return error.InvalidValue;
 
-            // A number without a unit is invalid
-            if (remaining.len == 0) return error.InvalidValue;
+            // A number without a unit is invalid unless the number is
+            // exactly zero. In that case, the unit is unambiguous since
+            // its all the same.
+            if (remaining.len == 0) {
+                if (number == 0) {
+                    value = 0;
+                    break;
+                }
+
+                return error.InvalidValue;
+            }
 
             // Find the longest matching unit. Needs to be the longest matching
             // to distinguish 'm' from 'ms'.
@@ -6751,6 +6869,11 @@ test "parse duration" {
         const t = try std.fmt.bufPrint(&buf, "1{s}", .{unit.name});
         const d = try Duration.parseCLI(t);
         try std.testing.expectEqual(unit.factor, d.duration);
+    }
+
+    {
+        const d = try Duration.parseCLI("0");
+        try std.testing.expectEqual(@as(u64, 0), d.duration);
     }
 
     {
