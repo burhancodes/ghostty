@@ -402,32 +402,47 @@ pub fn clonePool(
         };
 
         const start_pin = pin_remap.get(ordered.tl) orelse start: {
-            // No start means it is outside the cloned area. We change it
-            // to the top-left.
+            // No start means it is outside the cloned area.
 
             // If we have no end pin then either
             // (1) our whole selection is outside the cloned area or
             // (2) our cloned area is within the selection
             if (pin_remap.get(ordered.br) == null) {
-                // If our tl is before the cloned area and br is after
-                // the cloned area then the whole screen is selected.
-                // This detection is somewhat more expensive so we try
-                // to avoid it if possible so its nested in this if.
+                // We check if the selection bottom right pin is above
+                // the cloned area or if the top left pin is below the
+                // cloned area, in either of these cases it means that
+                // the selection is fully out of bounds, so we have no
+                // selection in the cloned area and break out now.
                 const clone_top = self.pages.pin(top) orelse break :sel null;
-                if (!sel.contains(self, clone_top)) break :sel null;
+                const clone_top_y = self.pages.pointFromPin(
+                    .screen,
+                    clone_top,
+                ).?.screen.y;
+                if (self.pages.pointFromPin(
+                    .screen,
+                    ordered.br.*,
+                ).?.screen.y < clone_top_y) break :sel null;
+                if (self.pages.pointFromPin(
+                    .screen,
+                    ordered.tl.*,
+                ).?.screen.y > clone_top_y) break :sel null;
             }
 
-            break :start try pages.trackPin(.{ .node = pages.pages.first.? });
+            // We move the top pin back in bounds to the top row.
+            break :start try pages.trackPin(.{
+                .node = pages.pages.first.?,
+                .x = if (sel.rectangle) ordered.tl.x else 0,
+            });
         };
 
-        const end_pin = pin_remap.get(ordered.br) orelse end: {
-            // No end means it is outside the cloned area. We change it
-            // to the bottom-right.
-            break :end try pages.trackPin(pages.pin(.{ .active = .{
-                .x = pages.cols - 1,
-                .y = pages.rows - 1,
-            } }) orelse break :sel null);
-        };
+        // If we got to this point it means that the selection is not
+        // fully out of bounds, so we move the bottom right pin back
+        // in bounds if it isn't already.
+        const end_pin = pin_remap.get(ordered.br) orelse try pages.trackPin(.{
+            .node = pages.pages.last.?,
+            .x = if (sel.rectangle) ordered.br.x else pages.cols - 1,
+            .y = pages.pages.last.?.data.size.rows - 1,
+        });
 
         break :sel .{
             .bounds = .{ .tracked = .{
@@ -5287,6 +5302,45 @@ test "Screen: clone contains subset of selection" {
     }
 }
 
+test "Screen: clone contains subset of rectangle selection" {
+    const testing = std.testing;
+    const alloc = testing.allocator;
+
+    var s = try init(alloc, 5, 4, 1);
+    defer s.deinit();
+    try s.testWriteString("1ABCD\n2EFGH\n3IJKL\n4ABCD");
+
+    // Select the full screen from x=1 to x=3
+    try s.select(Selection.init(
+        s.pages.pin(.{ .active = .{ .x = 1, .y = 0 } }).?,
+        s.pages.pin(.{ .active = .{ .x = 3, .y = 3 } }).?,
+        true,
+    ));
+
+    // Clone
+    var s2 = try s.clone(
+        alloc,
+        .{ .active = .{ .y = 1 } },
+        .{ .active = .{ .y = 2 } },
+    );
+    defer s2.deinit();
+
+    // Our selection should remain valid and be properly clipped
+    // preserving the columns of the start and end points of the
+    // selection.
+    {
+        const sel = s2.selection.?;
+        try testing.expectEqual(point.Point{ .active = .{
+            .x = 1,
+            .y = 0,
+        } }, s2.pages.pointFromPin(.active, sel.start()).?);
+        try testing.expectEqual(point.Point{ .active = .{
+            .x = 3,
+            .y = 3,
+        } }, s2.pages.pointFromPin(.active, sel.end()).?);
+    }
+}
+
 test "Screen: clone basic" {
     const testing = std.testing;
     const alloc = testing.allocator;
@@ -7857,7 +7911,7 @@ test "Screen: selectOutput" {
         try s.testWriteString("input2\n");                        // 3
         try s.testWriteString("output2output2output2output2\n");  // 4, 5, 6 due to overflow
         try s.testWriteString("output2\n");                       // 7
-        try s.testWriteString("prompt3$ input3\n");               // 8
+        try s.testWriteString("$ input3\n");                      // 8
         try s.testWriteString("output3\n");                       // 9
         try s.testWriteString("output3\n");                       // 10
         try s.testWriteString("output3");                         // 11
@@ -7945,14 +7999,14 @@ test "Screen: selectOutput" {
         } }, s.pages.pointFromPin(.active, sel.start()).?);
         try testing.expectEqual(point.Point{ .active = .{
             .x = 9,
-            .y = 12,
+            .y = 11,
         } }, s.pages.pointFromPin(.active, sel.end()).?);
     }
     // input / prompt at y = 0, pt.y = 0
     {
         s.deinit();
         s = try init(alloc, 10, 5, 0);
-        try s.testWriteString("prompt1$ input1\n");
+        try s.testWriteString("$ input1\n");
         try s.testWriteString("output1\n");
         try s.testWriteString("prompt2\n");
         {
@@ -7988,7 +8042,7 @@ test "Screen: selectPrompt basics" {
         try s.testWriteString("input2\n");          // 3
         try s.testWriteString("output2\n");         // 4
         try s.testWriteString("output2\n");         // 5
-        try s.testWriteString("prompt3$ input3\n"); // 6
+        try s.testWriteString("$ input3\n");        // 6
         try s.testWriteString("output3\n");         // 7
         try s.testWriteString("output3\n");         // 8
         try s.testWriteString("output3");           // 9
@@ -8203,7 +8257,7 @@ test "Screen: promptPath" {
         try s.testWriteString("input2\n");          // 3
         try s.testWriteString("output2\n");         // 4
         try s.testWriteString("output2\n");         // 5
-        try s.testWriteString("prompt3$ input3\n"); // 6
+        try s.testWriteString("$ input3\n");        // 6
         try s.testWriteString("output3\n");         // 7
         try s.testWriteString("output3\n");         // 8
         try s.testWriteString("output3");           // 9

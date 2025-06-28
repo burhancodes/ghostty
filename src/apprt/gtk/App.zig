@@ -55,6 +55,11 @@ pub const c = @cImport({
 
 const log = std.log.scoped(.gtk);
 
+/// This is detected by the Renderer, in which case it sends a `redraw_surface`
+/// message so that we can call `drawFrame` ourselves from the app thread,
+/// because GTK's `GLArea` does not support drawing from a different thread.
+pub const must_draw_from_app_thread = true;
+
 pub const Options = struct {};
 
 core_app: *CoreApp,
@@ -105,7 +110,7 @@ quit_timer: union(enum) {
     expired: void,
 } = .{ .off = {} },
 
-pub fn init(core_app: *CoreApp, opts: Options) !App {
+pub fn init(self: *App, core_app: *CoreApp, opts: Options) !void {
     _ = opts;
 
     // Log our GTK version
@@ -143,8 +148,8 @@ pub fn init(core_app: *CoreApp, opts: Options) !App {
     if (config.@"async-backend" != .auto) {
         const result: bool = switch (config.@"async-backend") {
             .auto => unreachable,
-            .epoll => xev.prefer(.epoll),
-            .io_uring => xev.prefer(.io_uring),
+            .epoll => if (comptime xev.dynamic) xev.prefer(.epoll) else false,
+            .io_uring => if (comptime xev.dynamic) xev.prefer(.io_uring) else false,
         };
 
         if (result) {
@@ -400,11 +405,15 @@ pub fn init(core_app: *CoreApp, opts: Options) !App {
     // This just calls the `activate` signal but its part of the normal startup
     // routine so we just call it, but only if the config allows it (this allows
     // for launching Ghostty in the "background" without immediately opening
-    // a window)
+    // a window). An initial window will not be immediately created if we were
+    // launched by D-Bus activation or systemd.  D-Bus activation will send it's
+    // own `activate` or `new-window` signal later.
     //
     // https://gitlab.gnome.org/GNOME/glib/-/blob/bd2ccc2f69ecfd78ca3f34ab59e42e2b462bad65/gio/gapplication.c#L2302
-    if (config.@"initial-window")
-        gio_app.activate();
+    if (config.@"initial-window") switch (config.@"launched-from".?) {
+        .desktop, .cli => gio_app.activate(),
+        .dbus, .systemd => {},
+    };
 
     // Internally, GTK ensures that only one instance of this provider exists in the provider list
     // for the display.
@@ -415,7 +424,7 @@ pub fn init(core_app: *CoreApp, opts: Options) !App {
         gtk.STYLE_PROVIDER_PRIORITY_APPLICATION + 3,
     );
 
-    return .{
+    self.* = .{
         .core_app = core_app,
         .app = adw_app,
         .config = config,
@@ -1678,6 +1687,17 @@ fn gtkActionShowGTKInspector(
     };
 }
 
+fn gtkActionNewWindow(
+    _: *gio.SimpleAction,
+    _: ?*glib.Variant,
+    self: *App,
+) callconv(.c) void {
+    log.info("received new window action", .{});
+    _ = self.core_app.mailbox.push(.{
+        .new_window = .{},
+    }, .{ .forever = {} });
+}
+
 /// This is called to setup the action map that this application supports.
 /// This should be called only once on startup.
 fn initActions(self: *App) void {
@@ -1697,7 +1717,9 @@ fn initActions(self: *App) void {
         .{ "reload-config", gtkActionReloadConfig, null },
         .{ "present-surface", gtkActionPresentSurface, t },
         .{ "show-gtk-inspector", gtkActionShowGTKInspector, null },
+        .{ "new-window", gtkActionNewWindow, null },
     };
+
     inline for (actions) |entry| {
         const action = gio.SimpleAction.new(entry[0], entry[2]);
         defer action.unref();

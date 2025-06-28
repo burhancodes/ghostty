@@ -11,6 +11,13 @@ class TerminalController: BaseTerminalController, TabGroupCloseCoordinator.Contr
 
         guard let appDelegate = NSApp.delegate as? AppDelegate else { return defaultValue }
         let config = appDelegate.ghostty.config
+
+        // If we have no window decorations, there's no reason to do anything but
+        // the default titlebar (because there will be no titlebar).
+        if !config.windowDecorations {
+            return defaultValue
+        }
+
         let nib = switch config.macosTitlebarStyle {
         case "native": "Terminal"
         case "hidden": "TerminalHiddenTitlebar"
@@ -169,7 +176,7 @@ class TerminalController: BaseTerminalController, TabGroupCloseCoordinator.Contr
     private static var lastCascadePoint = NSPoint(x: 0, y: 0)
 
     // The preferred parent terminal controller.
-    private static var preferredParent: TerminalController? {
+    static var preferredParent: TerminalController? {
         all.first {
             $0.window?.isMainWindow ?? false
         } ?? all.last
@@ -519,13 +526,13 @@ class TerminalController: BaseTerminalController, TabGroupCloseCoordinator.Contr
     }
 
     /// This is called anytime a node in the surface tree is being removed.
-    override func closeSurfaceNode(
+    override func closeSurface(
         _ node: SplitTree<Ghostty.SurfaceView>.Node,
         withConfirmation: Bool = true
     ) {
         // If this isn't the root then we're dealing with a split closure.
         if surfaceTree.root != node {
-            super.closeSurfaceNode(node, withConfirmation: withConfirmation)
+            super.closeSurface(node, withConfirmation: withConfirmation)
             return
         }
 
