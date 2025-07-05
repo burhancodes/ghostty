@@ -8,17 +8,12 @@
 %global project_id          com.mitchellh.ghostty
 %global project_summary     Fast, native, feature-rich terminal emulator pushing modern features
 
-# Disable debug package generation
-%define debug_package %{nil}
-
-# Remove the invalid build-id option from your build_options
 %global build_options %{shrink:
     --summary all
     -Doptimize=ReleaseFast
-    -Dcpu=baseline
     -fno-sys=glslang
-    -fsys=gtk4-layer-shell
     -fsys=simdutf
+    -fsys=gtk4-layer-shell
     -Dflatpak=false
     -Dfont-backend=fontconfig_freetype
     -Drenderer=opengl
@@ -56,41 +51,27 @@ Source0:        {{{git_repo_pack}}}
 ExclusiveArch:  %{zig_arches}
 ExcludeArch:    %{ix86}
 
-BuildRequires:  zig >= 0.14.0
-BuildRequires:  git, gcc, pkg-config, fdupes, desktop-file-utils, pandoc-cli, libappstream-glib
+BuildRequires:  (zig >= {{{zig_min_version}}} with zig < {{{zig_max_version}}})
+BuildRequires:  zig-rpm-macros >= 0.13.0-4
+BuildRequires:  git, gcc, pkg-config
+BuildRequires:  fdupes, desktop-file-utils, libappstream-glib, pandoc-cli
+BuildRequires:  pkgconfig(simdutf) >= 5.2.8
+# font backend
 BuildRequires:  pkgconfig(bzip2)
+BuildRequires:  pkgconfig(freetype2)
+BuildRequires:  pkgconfig(fontconfig)
+BuildRequires:  pkgconfig(harfbuzz)
+BuildRequires:  pkgconfig(libpng)
+BuildRequires:  pkgconfig(zlib-ng)
+BuildRequires:  pkgconfig(oniguruma)
 BuildRequires:  pkgconfig(libxml-2.0)
+# app runtime
+BuildRequires:  pkgconfig(gtk4)
 BuildRequires:  pkgconfig(libadwaita-1)
-
-BuildRequires:  simdutf-devel
-BuildRequires:  pixman-devel
-BuildRequires:  freetype-devel
-BuildRequires:  fontconfig-devel
-BuildRequires:  glib2-devel
-BuildRequires:  harfbuzz-devel
-BuildRequires:  libpng-devel
-BuildRequires:  zlib-ng-devel
-BuildRequires:  oniguruma-devel
+BuildRequires:  gtk4-layer-shell-devel
+BuildRequires:  libX11-devel
 BuildRequires:  gobject-introspection-devel
 BuildRequires:  blueprint-compiler
-BuildRequires:  gtk4-devel
-BuildRequires:  gtk4-layer-shell-devel
-BuildRequires:  libadwaita-devel
-BuildRequires:  libX11-devel
-BuildRequires:  pandoc-cli
-BuildRequires:  pkg-config
-BuildRequires:  wayland-protocols-devel
-
-Requires:       fontconfig
-Requires:       freetype
-Requires:       glib2
-Requires:       gtk4
-Requires:       harfbuzz
-Requires:       libadwaita
-Requires:       libpng
-Requires:       oniguruma
-Requires:       pixman
-Requires:       zlib-ng
 
 Requires:       %{name}-terminfo = %{version}-%{release}
 Requires:       %{name}-shell-integration = %{version}-%{release}
@@ -222,7 +203,6 @@ Summary:        Terminfo files for %{name}
 BuildArch:      noarch
 Requires:       %{name} = %{version}-%{release}
 Requires:       ncurses-base
-Supplements:    (%{name} = %{version}-%{release} and terminfo)
 
 %description    terminfo
 %{project_summary}.
@@ -253,32 +233,25 @@ Enhances:       %{name} = %{version}-%{release}
 ZIG_GLOBAL_CACHE_DIR=%{_zig_cache_dir} ./nix/build-support/fetch-zig-cache.sh
 
 %build
-export SHELL=/bin/bash
-/usr/bin/zig build %{gtk_options} || { cat build.log || true; exit 1; }
+%zig_build %{gtk_options}
+./zig-out/bin/%{name} +version
 
 %if %{with lib}
-/usr/bin/zig build %{lib_options} || { cat build.log || true; exit 1; }
+%zig_build %{lib_options}
 %endif
 
 %install
-export SHELL=/bin/bash
-/usr/bin/zig build install %{gtk_options} --prefix %{buildroot}/usr || { cat build.log || true; exit 1; }
+%zig_install %{gtk_options}
 
 %if %{with lib}
-/usr/bin/zig build install %{lib_options} --prefix %{buildroot}/usr || { cat build.log || true; exit 1; }
-%endif
-
-# Fix Fedora 42+ ncurses-term conflict
-%if 0%{?fedora} >= 42
-rm -f %{buildroot}%{_datadir}/terminfo/g/%{name}
+%zig_install %{lib_options}
 %endif
 
 %fdupes %{buildroot}%{_datadir}
 
 %check
 %if %{with test}
-export SHELL=/bin/bash
-/usr/bin/zig test %{gtk_options} || { cat test.log || true; exit 0; }
+%zig_test
 %endif
 
 appstream-util validate-relax --nonet %{buildroot}%{_metainfodir}/*.xml
@@ -288,11 +261,10 @@ desktop-file-validate %{buildroot}%{_datadir}/applications/%{project_id}.desktop
 %license LICENSE
 %{_bindir}/%{name}
 %{_datadir}/applications/%{project_id}.desktop
-%{_datadir}/metainfo/%{project_id}.metainfo.xml
 %{_datadir}/kio/servicemenus/%{project_id}.desktop
+%{_datadir}/locale/*/LC_MESSAGES/%{project_id}.mo
 %{_iconsdir}/hicolor/*/apps/%{project_id}.png
 %{_mandir}/man{1,5}/%{name}.*
-%{_datadir}/locale/*/LC_MESSAGES/%{project_id}.mo
 %{_metainfodir}/*.xml
 
 %if %{with lib}
@@ -330,11 +302,9 @@ desktop-file-validate %{buildroot}%{_datadir}/applications/%{project_id}.desktop
 
 %files nautilus
 %{_datadir}/nautilus-python/extensions/%{name}.py
-# Fix Fedora 42 ncurses-term conflict.
+
 %files terminfo
-%if 0%{?fedora} < 42
 %{_datadir}/terminfo/g/%{name}
-%endif
 %{_datadir}/terminfo/x/xterm-%{name}
 
 %files themes
