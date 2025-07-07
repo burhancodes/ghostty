@@ -348,7 +348,7 @@ pub const Face = struct {
 
             // use options from config
             .no_hinting = !do_hinting,
-            .force_autohint = !self.load_flags.@"force-autohint",
+            .force_autohint = self.load_flags.@"force-autohint",
             .no_autohint = !self.load_flags.autohint,
 
             // NO_SVG set to true because we don't currently support rendering
@@ -390,7 +390,7 @@ pub const Face = struct {
         // Next we need to apply any constraints.
         const metrics = opts.grid_metrics;
 
-        const cell_width: f64 = @floatFromInt(metrics.cell_width * opts.constraint_width);
+        const cell_width: f64 = @floatFromInt(metrics.cell_width);
         const cell_height: f64 = @floatFromInt(metrics.cell_height);
 
         const glyph_x: f64 = f26dot6ToF64(glyph.*.metrics.horiBearingX);
@@ -405,6 +405,7 @@ pub const Face = struct {
             },
             cell_width,
             cell_height,
+            opts.constraint_width,
         );
 
         const width = glyph_size.width;
