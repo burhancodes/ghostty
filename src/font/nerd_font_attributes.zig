@@ -25,6 +25,7 @@ pub fn getConstraint(cp: u21) Constraint {
         => .{
             .size_horizontal = .cover,
             .size_vertical = .fit,
+            .height = .icon,
             .max_constraint_width = 1,
             .align_horizontal = .center,
             .align_vertical = .center,
@@ -40,8 +41,8 @@ pub fn getConstraint(cp: u21) Constraint {
             .max_constraint_width = 1,
             .align_horizontal = .center,
             .align_vertical = .center,
-            .pad_top = 0.3,
-            .pad_bottom = 0.3,
+            .pad_top = 0.15,
+            .pad_bottom = 0.15,
         },
         0xe0b0,
         => .{
@@ -285,7 +286,7 @@ pub fn getConstraint(cp: u21) Constraint {
         0xe0d0...0xe0d1,
         => .{
             .size_horizontal = .cover,
-            .size_vertical = .cover,
+            .size_vertical = .fit,
             .align_horizontal = .start,
             .align_vertical = .center,
         },
@@ -294,7 +295,7 @@ pub fn getConstraint(cp: u21) Constraint {
         0xe0d5,
         => .{
             .size_horizontal = .cover,
-            .size_vertical = .cover,
+            .size_vertical = .fit,
             .align_horizontal = .center,
             .align_vertical = .center,
         },
@@ -362,6 +363,7 @@ pub fn getConstraint(cp: u21) Constraint {
         => .{
             .size_horizontal = .fit,
             .size_vertical = .fit,
+            .height = .icon,
             .align_horizontal = .center,
             .align_vertical = .center,
         },
