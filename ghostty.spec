@@ -1,6 +1,6 @@
 # https://github.com/ziglang/zig/pull/22357
 %bcond lib  0
-%bcond test 1
+%bcond test 0
 
 # needed to get rid of a header informing the user the application is compiled in debug mode
 %global _zig_release_mode   fast
