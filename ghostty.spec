@@ -266,6 +266,8 @@ desktop-file-validate %{buildroot}%{_datadir}/applications/%{project_id}.desktop
 %{_iconsdir}/hicolor/*/apps/%{project_id}.png
 %{_mandir}/man{1,5}/%{name}.*
 %{_metainfodir}/*.xml
+%{_datadir}/dbus-1/services/%{project_id}.service
+%{_userunitdir}/%{project_id}.service
 
 %if %{with lib}
 %files -n %{library}
