@@ -297,11 +297,12 @@ desktop-file-validate %{buildroot}%{_datadir}/applications/%{project_id}.desktop
 %{_bindir}/%{name}
 %{_datadir}/applications/%{project_id}.desktop
 %{_datadir}/metainfo/%{project_id}.metainfo.xml
+%{_datadir}/dbus-1/services/%{project_id}.service
+%{_datadir}/systemd/user/%{project_id}.service
 %{_datadir}/kio/servicemenus/%{project_id}.desktop
 %{_iconsdir}/hicolor/*/apps/%{project_id}.png
 %{_mandir}/man{1,5}/%{name}.*
 %{_datadir}/locale/*/LC_MESSAGES/%{project_id}.mo
-%{_metainfodir}/*.xml
 
 %if %{with lib}
 %files -n %{library}
