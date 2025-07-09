@@ -274,9 +274,12 @@ rm -f %{buildroot}%{_datadir}/terminfo/g/%{name}
 %endif
 
 # Fix buildroot references in generated files
-sed -i 's|%{buildroot}||g' %{buildroot}%{_datadir}/applications/%{project_id}.desktop
-sed -i 's|%{buildroot}||g' %{buildroot}%{_datadir}/dbus-1/services/%{project_id}.service
-sed -i 's|%{buildroot}||g' %{buildroot}%{_prefix}/lib/systemd/user/%{project_id}.service
+[ -f %{buildroot}%{_datadir}/applications/%{project_id}.desktop ] && \
+  sed -i 's|%{buildroot}||g' %{buildroot}%{_datadir}/applications/%{project_id}.desktop
+[ -f %{buildroot}%{_datadir}/dbus-1/services/%{project_id}.service ] && \
+  sed -i 's|%{buildroot}||g' %{buildroot}%{_datadir}/dbus-1/services/%{project_id}.service
+[ -f %{buildroot}%{_datadir}/systemd/user/%{project_id}.service ] && \
+  sed -i 's|%{buildroot}||g' %{buildroot}%{_datadir}/systemd/user/%{project_id}.service
 
 %fdupes %{buildroot}%{_datadir}
 
