@@ -12,15 +12,20 @@ const internal_os = @import("../../os/main.zig");
 const Config = configpkg.Config;
 const CoreApp = @import("../../App.zig");
 
-const GhosttyApplication = @import("class/application.zig").GhosttyApplication;
+const Application = @import("class/application.zig").Application;
 const Surface = @import("Surface.zig");
 const gtk_version = @import("gtk_version.zig");
 const adw_version = @import("adw_version.zig");
 
 const log = std.log.scoped(.gtk);
 
-/// The GObject GhosttyApplication instance
-app: *GhosttyApplication,
+/// This is detected by the Renderer, in which case it sends a `redraw_surface`
+/// message so that we can call `drawFrame` ourselves from the app thread,
+/// because GTK's `GLArea` does not support drawing from a different thread.
+pub const must_draw_from_app_thread = true;
+
+/// The GObject Application instance
+app: *Application,
 
 pub fn init(
     self: *App,
@@ -31,14 +36,14 @@ pub fn init(
 ) !void {
     _ = opts;
 
-    const app: *GhosttyApplication = try .new(core_app);
+    const app: *Application = try .new(self, core_app);
     errdefer app.unref();
     self.* = .{ .app = app };
     return;
 }
 
 pub fn run(self: *App) !void {
-    try self.app.run(self);
+    try self.app.run();
 }
 
 pub fn terminate(self: *App) void {
@@ -48,16 +53,18 @@ pub fn terminate(self: *App) void {
     self.app.deinit();
 }
 
+/// Called by CoreApp to wake up the event loop.
+pub fn wakeup(self: *App) void {
+    self.app.wakeup();
+}
+
 pub fn performAction(
     self: *App,
     target: apprt.Target,
     comptime action: apprt.Action.Key,
     value: apprt.Action.Value(action),
 ) !bool {
-    _ = self;
-    _ = target;
-    _ = value;
-    return false;
+    return try self.app.performAction(target, action, value);
 }
 
 pub fn performIpc(
@@ -70,12 +77,6 @@ pub fn performIpc(
     _ = target;
     _ = value;
     return false;
-}
-
-/// Close the given surface.
-pub fn redrawSurface(self: *App, surface: *Surface) void {
-    _ = self;
-    _ = surface;
 }
 
 /// Redraw the inspector for the given surface.
