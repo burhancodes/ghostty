@@ -93,6 +93,57 @@ pub const Surface = extern struct {
                 },
             );
         };
+
+        pub const @"mouse-hover-url" = struct {
+            pub const name = "mouse-hover-url";
+            pub const get = impl.get;
+            pub const set = impl.set;
+            const impl = gobject.ext.defineProperty(
+                name,
+                Self,
+                ?[:0]const u8,
+                .{
+                    .nick = "Mouse Hover URL",
+                    .blurb = "The URL the mouse is currently hovering over (if any).",
+                    .default = null,
+                    .accessor = C.privateStringFieldAccessor("mouse_hover_url"),
+                },
+            );
+        };
+
+        pub const pwd = struct {
+            pub const name = "pwd";
+            pub const get = impl.get;
+            pub const set = impl.set;
+            const impl = gobject.ext.defineProperty(
+                name,
+                Self,
+                ?[:0]const u8,
+                .{
+                    .nick = "Working Directory",
+                    .blurb = "The current working directory as reported by core.",
+                    .default = null,
+                    .accessor = C.privateStringFieldAccessor("pwd"),
+                },
+            );
+        };
+
+        pub const title = struct {
+            pub const name = "title";
+            pub const get = impl.get;
+            pub const set = impl.set;
+            const impl = gobject.ext.defineProperty(
+                name,
+                Self,
+                ?[:0]const u8,
+                .{
+                    .nick = "Title",
+                    .blurb = "The title of the surface.",
+                    .default = null,
+                    .accessor = C.privateStringFieldAccessor("title"),
+                },
+            );
+        };
     };
 
     pub const signals = struct {
@@ -128,9 +179,28 @@ pub const Surface = extern struct {
         /// Whether the mouse should be hidden or not as requested externally.
         mouse_hidden: bool = false,
 
+        /// The URL that the mouse is currently hovering over.
+        mouse_hover_url: ?[:0]const u8 = null,
+
+        /// The current working directory. This has to be reported externally,
+        /// usually by shell integration which then talks to libghostty
+        /// which triggers this property.
+        pwd: ?[:0]const u8 = null,
+
+        /// The title of this surface, if any has been set.
+        title: ?[:0]const u8 = null,
+
+        /// The overlay we use for things such as the URL hover label
+        /// or resize box. Bound from the template.
+        overlay: *gtk.Overlay = undefined,
+
         /// The GLAarea that renders the actual surface. This is a binding
         /// to the template so it doesn't have to be unrefed manually.
         gl_area: *gtk.GLArea = undefined,
+
+        /// The labels for the left/right sides of the URL hover tooltip.
+        url_left: *gtk.Label = undefined,
+        url_right: *gtk.Label = undefined,
 
         /// The apprt Surface.
         rt_surface: ApprtSurface = undefined,
@@ -770,6 +840,13 @@ pub const Surface = extern struct {
         _ = gobject.Object.signals.notify.connect(
             self,
             ?*anyopaque,
+            &propMouseHoverUrl,
+            null,
+            .{ .detail = "mouse-hover-url" },
+        );
+        _ = gobject.Object.signals.notify.connect(
+            self,
+            ?*anyopaque,
             &propMouseHidden,
             null,
             .{ .detail = "mouse-hidden" },
@@ -780,6 +857,41 @@ pub const Surface = extern struct {
             &propMouseShape,
             null,
             .{ .detail = "mouse-shape" },
+        );
+
+        // Some other initialization steps
+        self.initUrlOverlay();
+    }
+
+    fn initUrlOverlay(self: *Self) void {
+        const priv = self.private();
+        const overlay = priv.overlay;
+        const url_left = priv.url_left.as(gtk.Widget);
+        const url_right = priv.url_right.as(gtk.Widget);
+
+        // Add the url label to the overlay
+        overlay.addOverlay(url_left);
+        overlay.addOverlay(url_right);
+
+        // Setup a motion controller to handle moving the label
+        // to avoid the mouse.
+        const ec_motion = gtk.EventControllerMotion.new();
+        errdefer ec_motion.unref();
+        url_left.addController(ec_motion.as(gtk.EventController));
+        errdefer url_left.removeController(ec_motion.as(gtk.EventController));
+        _ = gtk.EventControllerMotion.signals.enter.connect(
+            ec_motion,
+            *Self,
+            ecUrlMouseEnter,
+            self,
+            .{},
+        );
+        _ = gtk.EventControllerMotion.signals.leave.connect(
+            ec_motion,
+            *Self,
+            ecUrlMouseLeave,
+            self,
+            .{},
         );
     }
 
@@ -821,6 +933,19 @@ pub const Surface = extern struct {
             priv.core_surface = null;
         }
 
+        if (priv.mouse_hover_url) |v| {
+            glib.free(@constCast(@ptrCast(v)));
+            priv.mouse_hover_url = null;
+        }
+        if (priv.pwd) |v| {
+            glib.free(@constCast(@ptrCast(v)));
+            priv.pwd = null;
+        }
+        if (priv.title) |v| {
+            glib.free(@constCast(@ptrCast(v)));
+            priv.title = null;
+        }
+
         gobject.Object.virtual_methods.finalize.call(
             Class.parent,
             self.as(Parent),
@@ -829,6 +954,21 @@ pub const Surface = extern struct {
 
     //---------------------------------------------------------------
     // Properties
+
+    /// Returns the title property without a copy.
+    pub fn getTitle(self: *Self) ?[:0]const u8 {
+        return self.private().title;
+    }
+
+    fn propMouseHoverUrl(
+        self: *Self,
+        _: *gobject.ParamSpec,
+        _: ?*anyopaque,
+    ) callconv(.c) void {
+        const priv = self.private();
+        const visible = if (priv.mouse_hover_url) |v| v.len > 0 else false;
+        priv.url_left.as(gtk.Widget).setVisible(if (visible) 1 else 0);
+    }
 
     fn propMouseHidden(
         self: *Self,
@@ -1483,6 +1623,26 @@ pub const Surface = extern struct {
         priv.core_surface = surface;
     }
 
+    fn ecUrlMouseEnter(
+        _: *gtk.EventControllerMotion,
+        _: f64,
+        _: f64,
+        self: *Self,
+    ) callconv(.c) void {
+        const priv = self.private();
+        const right = priv.url_right.as(gtk.Widget);
+        right.setVisible(1);
+    }
+
+    fn ecUrlMouseLeave(
+        _: *gtk.EventControllerMotion,
+        self: *Self,
+    ) callconv(.c) void {
+        const priv = self.private();
+        const right = priv.url_right.as(gtk.Widget);
+        right.setVisible(0);
+    }
+
     const C = Common(Self, Private);
     pub const as = C.as;
     pub const ref = C.ref;
@@ -1505,13 +1665,19 @@ pub const Surface = extern struct {
             );
 
             // Bindings
+            class.bindTemplateChildPrivate("overlay", .{});
             class.bindTemplateChildPrivate("gl_area", .{});
+            class.bindTemplateChildPrivate("url_left", .{});
+            class.bindTemplateChildPrivate("url_right", .{});
 
             // Properties
             gobject.ext.registerProperties(class, &.{
                 properties.config.impl,
                 properties.@"mouse-shape".impl,
                 properties.@"mouse-hidden".impl,
+                properties.@"mouse-hover-url".impl,
+                properties.pwd.impl,
+                properties.title.impl,
             });
 
             // Signals
