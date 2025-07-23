@@ -35,6 +35,10 @@ pub fn close(self: *Self, process_active: bool) void {
     self.surface.close(process_active);
 }
 
+pub fn cgroup(self: *Self) ?[]const u8 {
+    return self.surface.cgroupPath();
+}
+
 pub fn getTitle(self: *Self) ?[:0]const u8 {
     return self.surface.getTitle();
 }
@@ -69,9 +73,10 @@ pub fn clipboardRequest(
     clipboard_type: apprt.Clipboard,
     state: apprt.ClipboardRequest,
 ) !void {
-    _ = self;
-    _ = clipboard_type;
-    _ = state;
+    try self.surface.clipboardRequest(
+        clipboard_type,
+        state,
+    );
 }
 
 pub fn setClipboardString(
@@ -80,10 +85,11 @@ pub fn setClipboardString(
     clipboard_type: apprt.Clipboard,
     confirm: bool,
 ) !void {
-    _ = self;
-    _ = val;
-    _ = clipboard_type;
-    _ = confirm;
+    self.surface.setClipboardString(
+        val,
+        clipboard_type,
+        confirm,
+    );
 }
 
 pub fn defaultTermioEnv(self: *Self) !std.process.EnvMap {
