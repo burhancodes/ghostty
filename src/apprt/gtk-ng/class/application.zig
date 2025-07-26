@@ -15,6 +15,7 @@ const cgroup = @import("../cgroup.zig");
 const CoreApp = @import("../../../App.zig");
 const configpkg = @import("../../../config.zig");
 const internal_os = @import("../../../os/main.zig");
+const systemd = @import("../../../os/systemd.zig");
 const terminal = @import("../../../terminal/main.zig");
 const xev = @import("../../../global.zig").xev;
 const CoreConfig = configpkg.Config;
@@ -376,6 +377,9 @@ pub const Application = extern struct {
             return;
         }
 
+        // Tell systemd that we are ready.
+        systemd.notify.ready();
+
         log.debug("entering runloop", .{});
         defer log.debug("exiting runloop", .{});
         priv.running = true;
@@ -433,15 +437,26 @@ pub const Application = extern struct {
     }
 
     fn quitNow(self: *Self) void {
-        // Get all our windows and destroy them, forcing them to
-        // free their memory.
+        // Get all our windows and destroy them, forcing them to free.
         const list = gtk.Window.listToplevels();
         defer list.free();
         list.foreach(struct {
             fn callback(data: ?*anyopaque, _: ?*anyopaque) callconv(.c) void {
                 const ptr = data orelse return;
                 const window: *gtk.Window = @ptrCast(@alignCast(ptr));
-                window.destroy();
+
+                // We only want to destroy our windows. These windows own
+                // every other type of window that is possible so this will
+                // trigger a proper shutdown sequence.
+                //
+                // We previously just destroyed ALL windows but this leads to
+                // a double-free with the fcitx ime, because it has a nested
+                // gtk.Window as a property that we don't own and it later
+                // tries to free on its own. I think this is probably a bug in
+                // the fcitx ime widget but still, we don't want a double free!
+                if (gobject.ext.isA(window, Window)) {
+                    window.destroy();
+                }
             }
         }.callback, null);
 
@@ -485,6 +500,8 @@ pub const Application = extern struct {
 
             .render => Action.render(self, target),
 
+            .ring_bell => Action.ringBell(target),
+
             .set_title => Action.setTitle(target, value),
 
             .show_child_exited => return Action.showChildExited(target, value),
@@ -515,7 +532,6 @@ pub const Application = extern struct {
             .toggle_window_decorations,
             .prompt_title,
             .toggle_quick_terminal,
-            .ring_bell,
             .toggle_command_palette,
             .open_url,
             .close_all_windows,
@@ -1084,9 +1100,7 @@ const Action = struct {
         self: *Application,
         parent: ?*CoreSurface,
     ) !void {
-        _ = parent;
-
-        const win = Window.new(self);
+        const win = Window.new(self, parent);
         gtk.Window.present(win.as(gtk.Window));
     }
 
@@ -1135,6 +1149,13 @@ const Action = struct {
         switch (target) {
             .app => {},
             .surface => |v| v.rt_surface.surface.redraw(),
+        }
+    }
+
+    pub fn ringBell(target: apprt.Target) void {
+        switch (target) {
+            .app => {},
+            .surface => |v| v.rt_surface.surface.ringBell(),
         }
     }
 

@@ -9,6 +9,7 @@ const gobject = @import("gobject");
 const gtk = @import("gtk");
 
 const apprt = @import("../../../apprt.zig");
+const font = @import("../../../font/main.zig");
 const input = @import("../../../input.zig");
 const internal_os = @import("../../../os/main.zig");
 const renderer = @import("../../../renderer.zig");
@@ -74,6 +75,25 @@ pub const Surface = extern struct {
                         Private,
                         &Private.offset,
                         "child_exited",
+                    ),
+                },
+            );
+        };
+
+        pub const @"font-size-request" = struct {
+            pub const name = "font-size-request";
+            const impl = gobject.ext.defineProperty(
+                name,
+                Self,
+                ?*font.face.DesiredSize,
+                .{
+                    .nick = "Desired Font Size",
+                    .blurb = "The desired font size, only affects initialization.",
+                    .accessor = gobject.ext.privateFieldAccessor(
+                        Self,
+                        Private,
+                        &Private.offset,
+                        "font_size_request",
                     ),
                 },
             );
@@ -213,6 +233,21 @@ pub const Surface = extern struct {
             );
         };
 
+        /// The bell is rung.
+        ///
+        /// The surface view handles the audio bell feature but none of the
+        /// others so it is up to the embedding widget to react to this.
+        pub const bell = struct {
+            pub const name = "bell";
+            pub const connect = impl.connect;
+            const impl = gobject.ext.defineSignal(
+                name,
+                Self,
+                &.{},
+                void,
+            );
+        };
+
         /// Emitted whenever the clipboard has been written.
         pub const @"clipboard-write" = struct {
             pub const name = "clipboard-write";
@@ -246,6 +281,10 @@ pub const Surface = extern struct {
         /// if `Application.transient_cgroup_base` is set.
         cgroup_path: ?[]const u8 = null,
 
+        /// The requested font size. This only applies to initialization
+        /// and has no effect later.
+        font_size_request: ?*font.face.DesiredSize = null,
+
         /// The mouse shape to show for the surface.
         mouse_shape: terminal.MouseShape = .default,
 
@@ -258,6 +297,10 @@ pub const Surface = extern struct {
         /// The current working directory. This has to be reported externally,
         /// usually by shell integration which then talks to libghostty
         /// which triggers this property.
+        ///
+        /// If this is set prior to initialization then the surface will
+        /// start in this pwd. If it is set after, it has no impact on the
+        /// core surface.
         pwd: ?[:0]const u8 = null,
 
         /// The title of this surface, if any has been set.
@@ -334,6 +377,38 @@ pub const Surface = extern struct {
         return &priv.rt_surface;
     }
 
+    /// Set the parent of this surface. This will extract the information
+    /// required to initialize this surface with the proper values but doesn't
+    /// retain any memory.
+    ///
+    /// If the surface is already realized this does nothing.
+    pub fn setParent(
+        self: *Self,
+        parent: *CoreSurface,
+    ) void {
+        const priv = self.private();
+
+        // This is a mistake! We can only set a parent before surface
+        // realization. We log this because this is probably a logic error.
+        if (priv.core_surface != null) {
+            log.warn("setParent called after surface is already realized", .{});
+            return;
+        }
+
+        // Setup our font size
+        const font_size_ptr = glib.ext.create(font.face.DesiredSize);
+        errdefer glib.ext.destroy(font_size_ptr);
+        font_size_ptr.* = parent.font_size;
+        priv.font_size_request = font_size_ptr;
+        self.as(gobject.Object).notifyByPspec(properties.@"font-size-request".impl.param_spec);
+
+        // Setup our pwd
+        if (parent.rt_surface.surface.getPwd()) |pwd| {
+            priv.pwd = glib.ext.dupeZ(u8, pwd);
+            self.as(gobject.Object).notifyByPspec(properties.pwd.impl.param_spec);
+        }
+    }
+
     /// Force the surface to redraw itself. Ghostty often will only redraw
     /// the terminal in reaction to internal changes. If there are external
     /// events that invalidate the surface, such as the widget moving parents,
@@ -341,6 +416,18 @@ pub const Surface = extern struct {
     pub fn redraw(self: *Self) void {
         const priv = self.private();
         priv.gl_area.queueRender();
+    }
+
+    /// Ring the bell.
+    pub fn ringBell(self: *Self) void {
+        // TODO: Audio feature
+
+        signals.bell.impl.emit(
+            self,
+            null,
+            .{},
+            null,
+        );
     }
 
     /// Set the current progress report state.
@@ -1002,6 +1089,10 @@ pub const Surface = extern struct {
             glib.free(@constCast(@ptrCast(v)));
             priv.mouse_hover_url = null;
         }
+        if (priv.font_size_request) |v| {
+            glib.ext.destroy(v);
+            priv.font_size_request = null;
+        }
         if (priv.pwd) |v| {
             glib.free(@constCast(@ptrCast(v)));
             priv.pwd = null;
@@ -1024,6 +1115,11 @@ pub const Surface = extern struct {
     /// Returns the title property without a copy.
     pub fn getTitle(self: *Self) ?[:0]const u8 {
         return self.private().title;
+    }
+
+    /// Returns the pwd property without a copy.
+    pub fn getPwd(self: *Self) ?[:0]const u8 {
+        return self.private().pwd;
     }
 
     fn propConfig(
@@ -1866,6 +1962,10 @@ pub const Surface = extern struct {
         );
         defer config.deinit();
 
+        // Properties that can impact surface init
+        if (priv.font_size_request) |size| config.@"font-size" = size.points;
+        if (priv.pwd) |pwd| config.@"working-directory" = pwd;
+
         // Initialize the surface
         surface.init(
             alloc,
@@ -1969,6 +2069,7 @@ pub const Surface = extern struct {
             gobject.ext.registerProperties(class, &.{
                 properties.config.impl,
                 properties.@"child-exited".impl,
+                properties.@"font-size-request".impl,
                 properties.focused.impl,
                 properties.@"mouse-shape".impl,
                 properties.@"mouse-hidden".impl,
@@ -1979,6 +2080,7 @@ pub const Surface = extern struct {
 
             // Signals
             signals.@"close-request".impl.register(.{});
+            signals.bell.impl.register(.{});
             signals.@"clipboard-read".impl.register(.{});
             signals.@"clipboard-write".impl.register(.{});
 
