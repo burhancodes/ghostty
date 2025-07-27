@@ -10,6 +10,7 @@ const gobject = @import("gobject");
 const gtk = @import("gtk");
 
 const build_config = @import("../../../build_config.zig");
+const i18n = @import("../../../os/main.zig").i18n;
 const apprt = @import("../../../apprt.zig");
 const cgroup = @import("../cgroup.zig");
 const CoreApp = @import("../../../App.zig");
@@ -28,6 +29,7 @@ const ApprtApp = @import("../App.zig");
 const Common = @import("../class.zig").Common;
 const WeakRef = @import("../weak_ref.zig").WeakRef;
 const Config = @import("config.zig").Config;
+const Surface = @import("surface.zig").Surface;
 const Window = @import("window.zig").Window;
 const CloseConfirmationDialog = @import("close_confirmation_dialog.zig").CloseConfirmationDialog;
 const ConfigErrorsDialog = @import("config_errors_dialog.zig").ConfigErrorsDialog;
@@ -225,8 +227,7 @@ pub const Application = extern struct {
                 }
             }
 
-            const default_id = comptime build_config.bundle_id;
-            break :app_id if (builtin.mode == .Debug) default_id ++ "-debug" else default_id;
+            break :app_id ApprtApp.application_id;
         };
 
         const display: *gdk.Display = gdk.Display.getDefault() orelse {
@@ -420,10 +421,16 @@ pub const Application = extern struct {
             return;
         }
 
+        // Get the parent for our dialog
+        const parent: ?*gtk.Widget = parent: {
+            const list = gtk.Window.listToplevels();
+            defer list.free();
+            const focused = list.findCustom(null, findActiveWindow);
+            break :parent @ptrCast(@alignCast(focused.f_data));
+        };
+
         // Show a confirmation dialog
         const dialog: *CloseConfirmationDialog = .new(.app);
-
-        // Connect to the reload signal so we know to reload our config.
         _ = CloseConfirmationDialog.signals.@"close-request".connect(
             dialog,
             *Application,
@@ -433,7 +440,7 @@ pub const Application = extern struct {
         );
 
         // Show it
-        dialog.present();
+        dialog.present(parent);
     }
 
     fn quitNow(self: *Self) void {
@@ -472,6 +479,9 @@ pub const Application = extern struct {
         value: apprt.Action.Value(action),
     ) !bool {
         switch (action) {
+            .close_tab => Action.close(target, .tab),
+            .close_window => Action.close(target, .window),
+
             .config_change => try Action.configChange(
                 self,
                 target,
@@ -498,7 +508,7 @@ pub const Application = extern struct {
 
             .progress_report => return Action.progressReport(target, value),
 
-            .render => Action.render(self, target),
+            .render => Action.render(target),
 
             .ring_bell => Action.ringBell(target),
 
@@ -508,12 +518,11 @@ pub const Application = extern struct {
 
             .show_gtk_inspector => Action.showGtkInspector(),
 
+            .toggle_maximize => Action.toggleMaximize(target),
+            .toggle_fullscreen => Action.toggleFullscreen(target),
+
             // Unimplemented but todo on gtk-ng branch
-            .close_window,
-            .toggle_maximize,
-            .toggle_fullscreen,
             .new_tab,
-            .close_tab,
             .goto_tab,
             .move_tab,
             .new_split,
@@ -681,6 +690,9 @@ pub const Application = extern struct {
         // Setup our style manager (light/dark mode)
         self.startupStyleManager();
 
+        // Setup our action map
+        self.startupActionMap();
+
         // Setup our cgroup for the application.
         self.startupCgroup() catch |err| {
             log.warn("cgroup initialization failed err={}", .{err});
@@ -764,6 +776,45 @@ pub const Application = extern struct {
             self,
             .{ .detail = "dark" },
         );
+    }
+
+    /// Setup our action map.
+    fn startupActionMap(self: *Self) void {
+        const t_variant_type = glib.ext.VariantType.newFor(u64);
+        defer t_variant_type.free();
+
+        const as_variant_type = glib.VariantType.new("as");
+        defer as_variant_type.free();
+
+        // The set of actions. Each action has (in order):
+        // [0] The action name
+        // [1] The callback function
+        // [2] The glib.VariantType of the parameter
+        //
+        // For action names:
+        // https://docs.gtk.org/gio/type_func.Action.name_is_valid.html
+        const actions = .{
+            .{ "quit", actionQuit, null },
+            .{ "new-window", actionNewWindow, null },
+            .{ "new-window-command", actionNewWindow, as_variant_type },
+        };
+
+        const action_map = self.as(gio.ActionMap);
+        inline for (actions) |entry| {
+            const action = gio.SimpleAction.new(
+                entry[0],
+                entry[2],
+            );
+            defer action.unref();
+            _ = gio.SimpleAction.signals.activate.connect(
+                action,
+                *Self,
+                entry[1],
+                self,
+                .{},
+            );
+            action_map.addAction(action.as(gio.Action));
+        }
     }
 
     const CgroupError = error{
@@ -965,6 +1016,63 @@ pub const Application = extern struct {
         dialog.present(null);
     }
 
+    fn actionQuit(
+        _: *gio.SimpleAction,
+        _: ?*glib.Variant,
+        self: *Self,
+    ) callconv(.c) void {
+        const priv = self.private();
+        priv.core_app.performAction(self.rt(), .quit) catch |err| {
+            log.warn("error quitting err={}", .{err});
+        };
+    }
+
+    /// Handle `app.new-window` and `app.new-window-command` GTK actions
+    pub fn actionNewWindow(
+        _: *gio.SimpleAction,
+        parameter_: ?*glib.Variant,
+        self: *Self,
+    ) callconv(.c) void {
+        log.debug("received new window action", .{});
+
+        parameter: {
+            // were we given a parameter?
+            const parameter = parameter_ orelse break :parameter;
+
+            const as_variant_type = glib.VariantType.new("as");
+            defer as_variant_type.free();
+
+            // ensure that the supplied parameter is an array of strings
+            if (glib.Variant.isOfType(parameter, as_variant_type) == 0) {
+                log.warn("parameter is of type {s}", .{parameter.getTypeString()});
+                break :parameter;
+            }
+
+            const s_variant_type = glib.VariantType.new("s");
+            defer s_variant_type.free();
+
+            var it: glib.VariantIter = undefined;
+            _ = it.init(parameter);
+
+            while (it.nextValue()) |value| {
+                defer value.unref();
+
+                // just to be sure
+                if (value.isOfType(s_variant_type) == 0) continue;
+
+                var len: usize = undefined;
+                const buf = value.getString(&len);
+                const str = buf[0..len];
+
+                log.debug("new-window command argument: {s}", .{str});
+            }
+        }
+
+        _ = self.core().mailbox.push(.{
+            .new_window = .{},
+        }, .{ .forever = {} });
+    }
+
     //----------------------------------------------------------------
     // Boilerplate/Noise
 
@@ -1012,6 +1120,16 @@ pub const Application = extern struct {
 
 /// All apprt action handlers
 const Action = struct {
+    pub fn close(
+        target: apprt.Target,
+        scope: Surface.CloseScope,
+    ) void {
+        switch (target) {
+            .app => {},
+            .surface => |v| v.rt_surface.surface.close(scope),
+        }
+    }
+
     pub fn configChange(
         self: *Application,
         target: apprt.Target,
@@ -1145,7 +1263,7 @@ const Action = struct {
         };
     }
 
-    pub fn render(_: *Application, target: apprt.Target) void {
+    pub fn render(target: apprt.Target) void {
         switch (target) {
             .app => {},
             .surface => |v| v.rt_surface.surface.redraw(),
@@ -1189,6 +1307,20 @@ const Action = struct {
 
     pub fn showGtkInspector() void {
         gtk.Window.setInteractiveDebugging(@intFromBool(true));
+    }
+
+    pub fn toggleFullscreen(target: apprt.Target) void {
+        switch (target) {
+            .app => {},
+            .surface => |v| v.rt_surface.surface.toggleFullscreen(),
+        }
+    }
+
+    pub fn toggleMaximize(target: apprt.Target) void {
+        switch (target) {
+            .app => {},
+            .surface => |v| v.rt_surface.surface.toggleMaximize(),
+        }
     }
 };
 
@@ -1296,4 +1428,13 @@ fn setGtkEnv(config: *const CoreConfig) error{NoSpaceLeft}!void {
         log.warn("setting GDK_DISABLE={s}", .{value[0 .. value.len - 1]});
         _ = internal_os.setenv("GDK_DISABLE", value[0 .. value.len - 1 :0]);
     }
+}
+
+fn findActiveWindow(data: ?*const anyopaque, _: ?*const anyopaque) callconv(.c) c_int {
+    const window: *gtk.Window = @ptrCast(@alignCast(@constCast(data orelse return -1)));
+
+    // Confusingly, `isActive` returns 1 when active,
+    // but we want to return 0 to indicate equality.
+    // Abusing integers to be enums and booleans is a terrible idea, C.
+    return if (window.isActive() != 0) 0 else -1;
 }
