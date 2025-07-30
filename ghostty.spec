@@ -278,8 +278,8 @@ rm -f %{buildroot}%{_datadir}/terminfo/g/%{name}
   sed -i 's|%{buildroot}||g' %{buildroot}%{_datadir}/applications/%{project_id}.desktop
 [ -f %{buildroot}%{_datadir}/dbus-1/services/%{project_id}.service ] && \
   sed -i 's|%{buildroot}||g' %{buildroot}%{_datadir}/dbus-1/services/%{project_id}.service
-[ -f %{buildroot}%{_datadir}/systemd/user/%{project_id}.service ] && \
-  sed -i 's|%{buildroot}||g' %{buildroot}%{_datadir}/systemd/user/%{project_id}.service
+[ -f %{buildroot}%{_datadir}/systemd/user/app-%{project_id}.service ] && \
+  sed -i 's|%{buildroot}||g' %{buildroot}%{_datadir}/systemd/user/app-%{project_id}.service
 
 %fdupes %{buildroot}%{_datadir}
 
@@ -298,7 +298,7 @@ desktop-file-validate %{buildroot}%{_datadir}/applications/%{project_id}.desktop
 %{_datadir}/applications/%{project_id}.desktop
 %{_datadir}/metainfo/%{project_id}.metainfo.xml
 %{_datadir}/dbus-1/services/%{project_id}.service
-%{_datadir}/systemd/user/%{project_id}.service
+%{_datadir}/systemd/user/app-%{project_id}.service
 %{_datadir}/kio/servicemenus/%{project_id}.desktop
 %{_iconsdir}/hicolor/*/apps/%{project_id}.png
 %{_mandir}/man{1,5}/%{name}.*
