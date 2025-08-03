@@ -549,7 +549,9 @@ pub const Application = extern struct {
 
             .toggle_maximize => Action.toggleMaximize(target),
             .toggle_fullscreen => Action.toggleFullscreen(target),
+            .toggle_quick_terminal => return Action.toggleQuickTerminal(self),
             .toggle_tab_overview => return Action.toggleTabOverview(target),
+            .toggle_window_decorations => return Action.toggleWindowDecorations(target),
 
             // Unimplemented but todo on gtk-ng branch
             .prompt_title,
@@ -561,9 +563,6 @@ pub const Application = extern struct {
             .equalize_splits,
             .goto_split,
             .toggle_split_zoom,
-            // TODO: winproto
-            .toggle_quick_terminal,
-            .toggle_window_decorations,
             => {
                 log.warn("unimplemented action={}", .{action});
                 return false;
@@ -1477,7 +1476,14 @@ const Action = struct {
         parent: ?*CoreSurface,
     ) !void {
         const win = Window.new(self);
+        initAndShowWindow(self, win, parent);
+    }
 
+    fn initAndShowWindow(
+        self: *Application,
+        win: *Window,
+        parent: ?*CoreSurface,
+    ) void {
         // Setup a binding so that whenever our config changes so does the
         // window. There's never a time when the window config should be out
         // of sync with the application config.
@@ -1694,6 +1700,48 @@ const Action = struct {
         }
     }
 
+    pub fn toggleQuickTerminal(self: *Application) bool {
+        // If we already have a quick terminal window, we just toggle the
+        // visibility of it.
+        if (getQuickTerminalWindow()) |win| {
+            win.toggleVisibility();
+            return true;
+        }
+
+        // If we don't support quick terminals then we do nothing.
+        const priv = self.private();
+        if (!priv.winproto.supportsQuickTerminal()) return false;
+
+        // Create our new window as a quick terminal
+        const win = gobject.ext.newInstance(Window, .{
+            .application = self,
+            .@"quick-terminal" = true,
+        });
+        assert(win.isQuickTerminal());
+        initAndShowWindow(self, win, null);
+        return true;
+    }
+
+    fn getQuickTerminalWindow() ?*Window {
+        // Find a quick terminal window.
+        const list = gtk.Window.listToplevels();
+        defer list.free();
+        if (ext.listFind(gtk.Window, list, struct {
+            fn find(gtk_win: *gtk.Window) bool {
+                const win = gobject.ext.cast(
+                    Window,
+                    gtk_win,
+                ) orelse return false;
+                return win.isQuickTerminal();
+            }
+        }.find)) |w| return gobject.ext.cast(
+            Window,
+            w,
+        ).?;
+
+        return null;
+    }
+
     pub fn toggleMaximize(target: apprt.Target) void {
         switch (target) {
             .app => {},
@@ -1715,6 +1763,25 @@ const Action = struct {
                 };
 
                 window.toggleTabOverview();
+                return true;
+            },
+        }
+    }
+
+    pub fn toggleWindowDecorations(target: apprt.Target) bool {
+        switch (target) {
+            .app => return false,
+            .surface => |core| {
+                const surface = core.rt_surface.surface;
+                const window = ext.getAncestor(
+                    Window,
+                    surface.as(gtk.Widget),
+                ) orelse {
+                    log.warn("surface is not in a window, ignoring new_tab", .{});
+                    return false;
+                };
+
+                window.toggleWindowDecorations();
                 return true;
             },
         }
