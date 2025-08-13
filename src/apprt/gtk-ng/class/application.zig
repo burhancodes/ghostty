@@ -597,6 +597,8 @@ pub const Application = extern struct {
 
             .render => Action.render(target),
 
+            .resize_split => return Action.resizeSplit(target, value),
+
             .ring_bell => Action.ringBell(target),
 
             .set_title => Action.setTitle(target, value),
@@ -613,13 +615,11 @@ pub const Application = extern struct {
             .toggle_tab_overview => return Action.toggleTabOverview(target),
             .toggle_window_decorations => return Action.toggleWindowDecorations(target),
             .toggle_command_palette => return Action.toggleCommandPalette(target),
+            .toggle_split_zoom => return Action.toggleSplitZoom(target),
 
             // Unimplemented but todo on gtk-ng branch
             .prompt_title,
             .inspector,
-            // TODO: splits
-            .resize_split,
-            .toggle_split_zoom,
             => {
                 log.warn("unimplemented action={}", .{action});
                 return false;
@@ -2003,6 +2003,43 @@ const Action = struct {
         }
     }
 
+    pub fn resizeSplit(
+        target: apprt.Target,
+        value: apprt.action.ResizeSplit,
+    ) bool {
+        switch (target) {
+            .app => {
+                log.warn("resize_split to app is unexpected", .{});
+                return false;
+            },
+            .surface => |core| {
+                const surface = core.rt_surface.surface;
+                const tree = ext.getAncestor(
+                    SplitTree,
+                    surface.as(gtk.Widget),
+                ) orelse {
+                    log.warn("surface is not in a split tree, ignoring goto_split", .{});
+                    return false;
+                };
+
+                return tree.resize(
+                    switch (value.direction) {
+                        .up => .up,
+                        .down => .down,
+                        .left => .left,
+                        .right => .right,
+                    },
+                    value.amount,
+                ) catch |err| switch (err) {
+                    error.OutOfMemory => {
+                        log.warn("unable to resize split, out of memory", .{});
+                        return false;
+                    },
+                };
+            },
+        }
+    }
+
     pub fn ringBell(target: apprt.Target) void {
         switch (target) {
             .app => {},
@@ -2081,6 +2118,21 @@ const Action = struct {
         assert(win.isQuickTerminal());
         initAndShowWindow(self, win, null);
         return true;
+    }
+
+    pub fn toggleSplitZoom(target: apprt.Target) bool {
+        switch (target) {
+            .app => {
+                log.warn("toggle_split_zoom to app is unexpected", .{});
+                return false;
+            },
+
+            .surface => |core| {
+                // TODO: pass surface ID when we have that
+                const surface = core.rt_surface.surface;
+                return surface.as(gtk.Widget).activateAction("split-tree.zoom", null) != 0;
+            },
+        }
     }
 
     fn getQuickTerminalWindow() ?*Window {
