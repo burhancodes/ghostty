@@ -589,6 +589,8 @@ pub const Application = extern struct {
 
             .progress_report => return Action.progressReport(target, value),
 
+            .prompt_title => return Action.promptTitle(target),
+
             .quit => self.quit(),
 
             .quit_timer => try Action.quitTimer(self, value),
@@ -616,9 +618,9 @@ pub const Application = extern struct {
             .toggle_window_decorations => return Action.toggleWindowDecorations(target),
             .toggle_command_palette => return Action.toggleCommandPalette(target),
             .toggle_split_zoom => return Action.toggleSplitZoom(target),
+            .show_on_screen_keyboard => return Action.showOnScreenKeyboard(target),
 
             // Unimplemented but todo on gtk-ng branch
-            .prompt_title,
             .inspector,
             => {
                 log.warn("unimplemented action={}", .{action});
@@ -1955,6 +1957,16 @@ const Action = struct {
         };
     }
 
+    pub fn promptTitle(target: apprt.Target) bool {
+        switch (target) {
+            .app => return false,
+            .surface => |v| {
+                v.rt_surface.surface.promptTitle();
+                return true;
+            },
+        }
+    }
+
     /// Reload the configuration for the application and propagate it
     /// across the entire application and all terminals.
     pub fn reloadConfig(
@@ -2043,7 +2055,7 @@ const Action = struct {
     pub fn ringBell(target: apprt.Target) void {
         switch (target) {
             .app => {},
-            .surface => |v| v.rt_surface.surface.ringBell(),
+            .surface => |v| v.rt_surface.surface.setBellRinging(true),
         }
     }
 
@@ -2132,6 +2144,21 @@ const Action = struct {
                 const surface = core.rt_surface.surface;
                 return surface.as(gtk.Widget).activateAction("split-tree.zoom", null) != 0;
             },
+        }
+    }
+
+    pub fn showOnScreenKeyboard(target: apprt.Target) bool {
+        switch (target) {
+            .app => {
+                log.warn("show_on_screen_keyboard to app is unexpected", .{});
+                return false;
+            },
+            // NOTE: Even though `activateOsk` takes a gdk.Event, it's currently
+            // unused by all implementations of `activateOsk` as of GTK 4.18.
+            // The commit that introduced the method (ce6aa73c) clarifies that
+            // the event *may* be used by other IM backends, but for Linux desktop
+            // environments this doesn't matter.
+            .surface => |v| return v.rt_surface.surface.showOnScreenKeyboard(null),
         }
     }
 
