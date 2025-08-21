@@ -133,6 +133,28 @@ pull request will be accepted with a high degree of certainty.
 
 See the [Contributor's Guide](po/README_CONTRIBUTORS.md) for more details.
 
+## Checking for Memory Leaks
+
+While Zig does an amazing job of finding and preventing memory leaks,
+Ghostty uses many third-party libraries that are written in C. Improper usage
+of those libraries or bugs in those libraries can cause memory leaks that
+Zig cannot detect by itself.
+
+### On Linux
+
+On Linux the recommended tool to check for memory leaks is Valgrind. The
+recommended way to run Valgrind is via `zig build`:
+
+```sh
+zig build run-valgrind
+```
+
+This builds a Ghostty executable with Valgrind support and runs Valgrind
+with the proper flags to ensure we're suppressing known false positives.
+
+You can combine the same build args with `run-valgrind` that you can with
+`run`, such as specifying additional configurations after a trailing `--`.
+
 ## Input Stack Testing
 
 The input stack is the part of the codebase that starts with a
