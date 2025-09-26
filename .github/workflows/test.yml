@@ -73,14 +73,14 @@ jobs:
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
 
       - name: Setup Cache
-        uses: namespacelabs/nscloud-cache-action@a289cf5d2fcd6874376aa92f0ef7f99dc923592a # v1.2.17
+        uses: namespacelabs/nscloud-cache-action@7baedde84bbf5063413d621f282834bc2654d0c1 # v1.2.18
         with:
           path: |
             /nix
             /zig
 
       # Install Nix and use that to run our tests so our environment matches exactly.
-      - uses: cachix/install-nix-action@a809471b5c7c913aa67bec8f459a11a0decc3fce # v31.6.2
+      - uses: cachix/install-nix-action@9280e7aca88deada44c930f1e2c78e21c3ae3edd # v31.7.0
         with:
           nix_path: nixpkgs=channel:nixos-unstable
       - uses: cachix/cachix-action@0fc020193b5a1fa3ac4575aa3a7d3aa6a35435ad # v16
@@ -107,14 +107,14 @@ jobs:
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
 
       - name: Setup Cache
-        uses: namespacelabs/nscloud-cache-action@a289cf5d2fcd6874376aa92f0ef7f99dc923592a # v1.2.17
+        uses: namespacelabs/nscloud-cache-action@7baedde84bbf5063413d621f282834bc2654d0c1 # v1.2.18
         with:
           path: |
             /nix
             /zig
 
       # Install Nix and use that to run our tests so our environment matches exactly.
-      - uses: cachix/install-nix-action@a809471b5c7c913aa67bec8f459a11a0decc3fce # v31.6.2
+      - uses: cachix/install-nix-action@9280e7aca88deada44c930f1e2c78e21c3ae3edd # v31.7.0
         with:
           nix_path: nixpkgs=channel:nixos-unstable
       - uses: cachix/cachix-action@0fc020193b5a1fa3ac4575aa3a7d3aa6a35435ad # v16
@@ -140,14 +140,14 @@ jobs:
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
 
       - name: Setup Cache
-        uses: namespacelabs/nscloud-cache-action@a289cf5d2fcd6874376aa92f0ef7f99dc923592a # v1.2.17
+        uses: namespacelabs/nscloud-cache-action@7baedde84bbf5063413d621f282834bc2654d0c1 # v1.2.18
         with:
           path: |
             /nix
             /zig
 
       # Install Nix and use that to run our tests so our environment matches exactly.
-      - uses: cachix/install-nix-action@a809471b5c7c913aa67bec8f459a11a0decc3fce # v31.6.2
+      - uses: cachix/install-nix-action@9280e7aca88deada44c930f1e2c78e21c3ae3edd # v31.7.0
         with:
           nix_path: nixpkgs=channel:nixos-unstable
       - uses: cachix/cachix-action@0fc020193b5a1fa3ac4575aa3a7d3aa6a35435ad # v16
@@ -174,14 +174,14 @@ jobs:
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
 
       - name: Setup Cache
-        uses: namespacelabs/nscloud-cache-action@a289cf5d2fcd6874376aa92f0ef7f99dc923592a # v1.2.17
+        uses: namespacelabs/nscloud-cache-action@7baedde84bbf5063413d621f282834bc2654d0c1 # v1.2.18
         with:
           path: |
             /nix
             /zig
 
       # Install Nix and use that to run our tests so our environment matches exactly.
-      - uses: cachix/install-nix-action@a809471b5c7c913aa67bec8f459a11a0decc3fce # v31.6.2
+      - uses: cachix/install-nix-action@9280e7aca88deada44c930f1e2c78e21c3ae3edd # v31.7.0
         with:
           nix_path: nixpkgs=channel:nixos-unstable
       - uses: cachix/cachix-action@0fc020193b5a1fa3ac4575aa3a7d3aa6a35435ad # v16
@@ -216,14 +216,14 @@ jobs:
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
 
       - name: Setup Cache
-        uses: namespacelabs/nscloud-cache-action@a289cf5d2fcd6874376aa92f0ef7f99dc923592a # v1.2.17
+        uses: namespacelabs/nscloud-cache-action@7baedde84bbf5063413d621f282834bc2654d0c1 # v1.2.18
         with:
           path: |
             /nix
             /zig
 
       # Install Nix and use that to run our tests so our environment matches exactly.
-      - uses: cachix/install-nix-action@a809471b5c7c913aa67bec8f459a11a0decc3fce # v31.6.2
+      - uses: cachix/install-nix-action@9280e7aca88deada44c930f1e2c78e21c3ae3edd # v31.7.0
         with:
           nix_path: nixpkgs=channel:nixos-unstable
       - uses: cachix/cachix-action@0fc020193b5a1fa3ac4575aa3a7d3aa6a35435ad # v16
@@ -252,14 +252,14 @@ jobs:
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
 
       - name: Setup Cache
-        uses: namespacelabs/nscloud-cache-action@a289cf5d2fcd6874376aa92f0ef7f99dc923592a # v1.2.17
+        uses: namespacelabs/nscloud-cache-action@7baedde84bbf5063413d621f282834bc2654d0c1 # v1.2.18
         with:
           path: |
             /nix
             /zig
 
       # Install Nix and use that to run our tests so our environment matches exactly.
-      - uses: cachix/install-nix-action@a809471b5c7c913aa67bec8f459a11a0decc3fce # v31.6.2
+      - uses: cachix/install-nix-action@9280e7aca88deada44c930f1e2c78e21c3ae3edd # v31.7.0
         with:
           nix_path: nixpkgs=channel:nixos-unstable
       - uses: cachix/cachix-action@0fc020193b5a1fa3ac4575aa3a7d3aa6a35435ad # v16
@@ -281,14 +281,14 @@ jobs:
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
 
       - name: Setup Cache
-        uses: namespacelabs/nscloud-cache-action@a289cf5d2fcd6874376aa92f0ef7f99dc923592a # v1.2.17
+        uses: namespacelabs/nscloud-cache-action@7baedde84bbf5063413d621f282834bc2654d0c1 # v1.2.18
         with:
           path: |
             /nix
             /zig
 
       # Install Nix and use that to run our tests so our environment matches exactly.
-      - uses: cachix/install-nix-action@a809471b5c7c913aa67bec8f459a11a0decc3fce # v31.6.2
+      - uses: cachix/install-nix-action@9280e7aca88deada44c930f1e2c78e21c3ae3edd # v31.7.0
         with:
           nix_path: nixpkgs=channel:nixos-unstable
       - uses: cachix/cachix-action@0fc020193b5a1fa3ac4575aa3a7d3aa6a35435ad # v16
@@ -314,14 +314,14 @@ jobs:
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
 
       - name: Setup Cache
-        uses: namespacelabs/nscloud-cache-action@a289cf5d2fcd6874376aa92f0ef7f99dc923592a # v1.2.17
+        uses: namespacelabs/nscloud-cache-action@7baedde84bbf5063413d621f282834bc2654d0c1 # v1.2.18
         with:
           path: |
             /nix
             /zig
 
       # Install Nix and use that to run our tests so our environment matches exactly.
-      - uses: cachix/install-nix-action@a809471b5c7c913aa67bec8f459a11a0decc3fce # v31.6.2
+      - uses: cachix/install-nix-action@9280e7aca88deada44c930f1e2c78e21c3ae3edd # v31.7.0
         with:
           nix_path: nixpkgs=channel:nixos-unstable
       - uses: cachix/cachix-action@0fc020193b5a1fa3ac4575aa3a7d3aa6a35435ad # v16
@@ -360,14 +360,14 @@ jobs:
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
 
       - name: Setup Cache
-        uses: namespacelabs/nscloud-cache-action@a289cf5d2fcd6874376aa92f0ef7f99dc923592a # v1.2.17
+        uses: namespacelabs/nscloud-cache-action@7baedde84bbf5063413d621f282834bc2654d0c1 # v1.2.18
         with:
           path: |
             /nix
             /zig
 
       # Install Nix and use that to run our tests so our environment matches exactly.
-      - uses: cachix/install-nix-action@a809471b5c7c913aa67bec8f459a11a0decc3fce # v31.6.2
+      - uses: cachix/install-nix-action@9280e7aca88deada44c930f1e2c78e21c3ae3edd # v31.7.0
         with:
           nix_path: nixpkgs=channel:nixos-unstable
       - uses: cachix/cachix-action@0fc020193b5a1fa3ac4575aa3a7d3aa6a35435ad # v16
@@ -572,14 +572,14 @@ jobs:
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
 
       - name: Setup Cache
-        uses: namespacelabs/nscloud-cache-action@a289cf5d2fcd6874376aa92f0ef7f99dc923592a # v1.2.17
+        uses: namespacelabs/nscloud-cache-action@7baedde84bbf5063413d621f282834bc2654d0c1 # v1.2.18
         with:
           path: |
             /nix
             /zig
 
       # Install Nix and use that to run our tests so our environment matches exactly.
-      - uses: cachix/install-nix-action@a809471b5c7c913aa67bec8f459a11a0decc3fce # v31.6.2
+      - uses: cachix/install-nix-action@9280e7aca88deada44c930f1e2c78e21c3ae3edd # v31.7.0
         with:
           nix_path: nixpkgs=channel:nixos-unstable
       - uses: cachix/cachix-action@0fc020193b5a1fa3ac4575aa3a7d3aa6a35435ad # v16
@@ -614,14 +614,14 @@ jobs:
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
 
       - name: Setup Cache
-        uses: namespacelabs/nscloud-cache-action@a289cf5d2fcd6874376aa92f0ef7f99dc923592a # v1.2.17
+        uses: namespacelabs/nscloud-cache-action@7baedde84bbf5063413d621f282834bc2654d0c1 # v1.2.18
         with:
           path: |
             /nix
             /zig
 
       # Install Nix and use that to run our tests so our environment matches exactly.
-      - uses: cachix/install-nix-action@a809471b5c7c913aa67bec8f459a11a0decc3fce # v31.6.2
+      - uses: cachix/install-nix-action@9280e7aca88deada44c930f1e2c78e21c3ae3edd # v31.7.0
         with:
           nix_path: nixpkgs=channel:nixos-unstable
       - uses: cachix/cachix-action@0fc020193b5a1fa3ac4575aa3a7d3aa6a35435ad # v16
@@ -662,14 +662,14 @@ jobs:
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
 
       - name: Setup Cache
-        uses: namespacelabs/nscloud-cache-action@a289cf5d2fcd6874376aa92f0ef7f99dc923592a # v1.2.17
+        uses: namespacelabs/nscloud-cache-action@7baedde84bbf5063413d621f282834bc2654d0c1 # v1.2.18
         with:
           path: |
             /nix
             /zig
 
       # Install Nix and use that to run our tests so our environment matches exactly.
-      - uses: cachix/install-nix-action@a809471b5c7c913aa67bec8f459a11a0decc3fce # v31.6.2
+      - uses: cachix/install-nix-action@9280e7aca88deada44c930f1e2c78e21c3ae3edd # v31.7.0
         with:
           nix_path: nixpkgs=channel:nixos-unstable
       - uses: cachix/cachix-action@0fc020193b5a1fa3ac4575aa3a7d3aa6a35435ad # v16
@@ -697,14 +697,14 @@ jobs:
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
 
       - name: Setup Cache
-        uses: namespacelabs/nscloud-cache-action@a289cf5d2fcd6874376aa92f0ef7f99dc923592a # v1.2.17
+        uses: namespacelabs/nscloud-cache-action@7baedde84bbf5063413d621f282834bc2654d0c1 # v1.2.18
         with:
           path: |
             /nix
             /zig
 
       # Install Nix and use that to run our tests so our environment matches exactly.
-      - uses: cachix/install-nix-action@a809471b5c7c913aa67bec8f459a11a0decc3fce # v31.6.2
+      - uses: cachix/install-nix-action@9280e7aca88deada44c930f1e2c78e21c3ae3edd # v31.7.0
         with:
           nix_path: nixpkgs=channel:nixos-unstable
       - uses: cachix/cachix-action@0fc020193b5a1fa3ac4575aa3a7d3aa6a35435ad # v16
@@ -761,14 +761,14 @@ jobs:
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
 
       - name: Setup Cache
-        uses: namespacelabs/nscloud-cache-action@a289cf5d2fcd6874376aa92f0ef7f99dc923592a # v1.2.17
+        uses: namespacelabs/nscloud-cache-action@7baedde84bbf5063413d621f282834bc2654d0c1 # v1.2.18
         with:
           path: |
             /nix
             /zig
 
       # Install Nix and use that to run our tests so our environment matches exactly.
-      - uses: cachix/install-nix-action@a809471b5c7c913aa67bec8f459a11a0decc3fce # v31.6.2
+      - uses: cachix/install-nix-action@9280e7aca88deada44c930f1e2c78e21c3ae3edd # v31.7.0
         with:
           nix_path: nixpkgs=channel:nixos-unstable
       - uses: cachix/cachix-action@0fc020193b5a1fa3ac4575aa3a7d3aa6a35435ad # v16
@@ -790,12 +790,12 @@ jobs:
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
       - name: Setup Cache
-        uses: namespacelabs/nscloud-cache-action@a289cf5d2fcd6874376aa92f0ef7f99dc923592a # v1.2.17
+        uses: namespacelabs/nscloud-cache-action@7baedde84bbf5063413d621f282834bc2654d0c1 # v1.2.18
         with:
           path: |
             /nix
             /zig
-      - uses: cachix/install-nix-action@a809471b5c7c913aa67bec8f459a11a0decc3fce # v31.6.2
+      - uses: cachix/install-nix-action@9280e7aca88deada44c930f1e2c78e21c3ae3edd # v31.7.0
         with:
           nix_path: nixpkgs=channel:nixos-unstable
       - uses: cachix/cachix-action@0fc020193b5a1fa3ac4575aa3a7d3aa6a35435ad # v16
@@ -818,12 +818,12 @@ jobs:
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
       - name: Setup Cache
-        uses: namespacelabs/nscloud-cache-action@a289cf5d2fcd6874376aa92f0ef7f99dc923592a # v1.2.17
+        uses: namespacelabs/nscloud-cache-action@7baedde84bbf5063413d621f282834bc2654d0c1 # v1.2.18
         with:
           path: |
             /nix
             /zig
-      - uses: cachix/install-nix-action@a809471b5c7c913aa67bec8f459a11a0decc3fce # v31.6.2
+      - uses: cachix/install-nix-action@9280e7aca88deada44c930f1e2c78e21c3ae3edd # v31.7.0
         with:
           nix_path: nixpkgs=channel:nixos-unstable
       - uses: cachix/cachix-action@0fc020193b5a1fa3ac4575aa3a7d3aa6a35435ad # v16
@@ -845,12 +845,12 @@ jobs:
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
       - name: Setup Cache
-        uses: namespacelabs/nscloud-cache-action@a289cf5d2fcd6874376aa92f0ef7f99dc923592a # v1.2.17
+        uses: namespacelabs/nscloud-cache-action@7baedde84bbf5063413d621f282834bc2654d0c1 # v1.2.18
         with:
           path: |
             /nix
             /zig
-      - uses: cachix/install-nix-action@a809471b5c7c913aa67bec8f459a11a0decc3fce # v31.6.2
+      - uses: cachix/install-nix-action@9280e7aca88deada44c930f1e2c78e21c3ae3edd # v31.7.0
         with:
           nix_path: nixpkgs=channel:nixos-unstable
       - uses: cachix/cachix-action@0fc020193b5a1fa3ac4575aa3a7d3aa6a35435ad # v16
@@ -872,12 +872,12 @@ jobs:
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
       - name: Setup Cache
-        uses: namespacelabs/nscloud-cache-action@a289cf5d2fcd6874376aa92f0ef7f99dc923592a # v1.2.17
+        uses: namespacelabs/nscloud-cache-action@7baedde84bbf5063413d621f282834bc2654d0c1 # v1.2.18
         with:
           path: |
             /nix
             /zig
-      - uses: cachix/install-nix-action@a809471b5c7c913aa67bec8f459a11a0decc3fce # v31.6.2
+      - uses: cachix/install-nix-action@9280e7aca88deada44c930f1e2c78e21c3ae3edd # v31.7.0
         with:
           nix_path: nixpkgs=channel:nixos-unstable
       - uses: cachix/cachix-action@0fc020193b5a1fa3ac4575aa3a7d3aa6a35435ad # v16
@@ -899,12 +899,12 @@ jobs:
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
       - name: Setup Cache
-        uses: namespacelabs/nscloud-cache-action@a289cf5d2fcd6874376aa92f0ef7f99dc923592a # v1.2.17
+        uses: namespacelabs/nscloud-cache-action@7baedde84bbf5063413d621f282834bc2654d0c1 # v1.2.18
         with:
           path: |
             /nix
             /zig
-      - uses: cachix/install-nix-action@a809471b5c7c913aa67bec8f459a11a0decc3fce # v31.6.2
+      - uses: cachix/install-nix-action@9280e7aca88deada44c930f1e2c78e21c3ae3edd # v31.7.0
         with:
           nix_path: nixpkgs=channel:nixos-unstable
       - uses: cachix/cachix-action@0fc020193b5a1fa3ac4575aa3a7d3aa6a35435ad # v16
@@ -926,12 +926,12 @@ jobs:
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
       - name: Setup Cache
-        uses: namespacelabs/nscloud-cache-action@a289cf5d2fcd6874376aa92f0ef7f99dc923592a # v1.2.17
+        uses: namespacelabs/nscloud-cache-action@7baedde84bbf5063413d621f282834bc2654d0c1 # v1.2.18
         with:
           path: |
             /nix
             /zig
-      - uses: cachix/install-nix-action@a809471b5c7c913aa67bec8f459a11a0decc3fce # v31.6.2
+      - uses: cachix/install-nix-action@9280e7aca88deada44c930f1e2c78e21c3ae3edd # v31.7.0
         with:
           nix_path: nixpkgs=channel:nixos-unstable
       - uses: cachix/cachix-action@0fc020193b5a1fa3ac4575aa3a7d3aa6a35435ad # v16
@@ -960,12 +960,12 @@ jobs:
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
       - name: Setup Cache
-        uses: namespacelabs/nscloud-cache-action@a289cf5d2fcd6874376aa92f0ef7f99dc923592a # v1.2.17
+        uses: namespacelabs/nscloud-cache-action@7baedde84bbf5063413d621f282834bc2654d0c1 # v1.2.18
         with:
           path: |
             /nix
             /zig
-      - uses: cachix/install-nix-action@a809471b5c7c913aa67bec8f459a11a0decc3fce # v31.6.2
+      - uses: cachix/install-nix-action@9280e7aca88deada44c930f1e2c78e21c3ae3edd # v31.7.0
         with:
           nix_path: nixpkgs=channel:nixos-unstable
       - uses: cachix/cachix-action@0fc020193b5a1fa3ac4575aa3a7d3aa6a35435ad # v16
@@ -987,12 +987,12 @@ jobs:
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
       - name: Setup Cache
-        uses: namespacelabs/nscloud-cache-action@a289cf5d2fcd6874376aa92f0ef7f99dc923592a # v1.2.17
+        uses: namespacelabs/nscloud-cache-action@7baedde84bbf5063413d621f282834bc2654d0c1 # v1.2.18
         with:
           path: |
             /nix
             /zig
-      - uses: cachix/install-nix-action@a809471b5c7c913aa67bec8f459a11a0decc3fce # v31.6.2
+      - uses: cachix/install-nix-action@9280e7aca88deada44c930f1e2c78e21c3ae3edd # v31.7.0
         with:
           nix_path: nixpkgs=channel:nixos-unstable
       - uses: cachix/cachix-action@0fc020193b5a1fa3ac4575aa3a7d3aa6a35435ad # v16
@@ -1022,14 +1022,14 @@ jobs:
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
 
       - name: Setup Cache
-        uses: namespacelabs/nscloud-cache-action@a289cf5d2fcd6874376aa92f0ef7f99dc923592a # v1.2.17
+        uses: namespacelabs/nscloud-cache-action@7baedde84bbf5063413d621f282834bc2654d0c1 # v1.2.18
         with:
           path: |
             /nix
             /zig
 
       # Install Nix and use that to run our tests so our environment matches exactly.
-      - uses: cachix/install-nix-action@a809471b5c7c913aa67bec8f459a11a0decc3fce # v31.6.2
+      - uses: cachix/install-nix-action@9280e7aca88deada44c930f1e2c78e21c3ae3edd # v31.7.0
         with:
           nix_path: nixpkgs=channel:nixos-unstable
       - uses: cachix/cachix-action@0fc020193b5a1fa3ac4575aa3a7d3aa6a35435ad # v16
@@ -1110,14 +1110,14 @@ jobs:
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
 
       - name: Setup Cache
-        uses: namespacelabs/nscloud-cache-action@a289cf5d2fcd6874376aa92f0ef7f99dc923592a # v1.2.17
+        uses: namespacelabs/nscloud-cache-action@7baedde84bbf5063413d621f282834bc2654d0c1 # v1.2.18
         with:
           path: |
             /nix
             /zig
 
       # Install Nix and use that to run our tests so our environment matches exactly.
-      - uses: cachix/install-nix-action@a809471b5c7c913aa67bec8f459a11a0decc3fce # v31.6.2
+      - uses: cachix/install-nix-action@9280e7aca88deada44c930f1e2c78e21c3ae3edd # v31.7.0
         with:
           nix_path: nixpkgs=channel:nixos-unstable
       - uses: cachix/cachix-action@0fc020193b5a1fa3ac4575aa3a7d3aa6a35435ad # v16
