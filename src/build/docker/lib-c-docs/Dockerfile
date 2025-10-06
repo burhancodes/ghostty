@@ -1,17 +1,17 @@
 #--------------------------------------------------------------------
 # Generate documentation with Doxygen
 #--------------------------------------------------------------------
-FROM ubuntu:24.04 AS builder
+FROM alpine:latest AS builder
 
 # Build argument for noindex header
 ARG ADD_NOINDEX_HEADER=false
-RUN apt-get update && apt-get install -y \
+RUN apk add --no-cache \
     doxygen \
-    graphviz \
-    && rm -rf /var/lib/apt/lists/*
+    graphviz
 WORKDIR /ghostty
 COPY include/ ./include/
 COPY Doxyfile ./
+COPY DoxygenLayout.xml ./
 RUN mkdir -p zig-out/share/ghostty/doc/libghostty
 RUN doxygen
 

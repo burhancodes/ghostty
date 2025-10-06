@@ -72,10 +72,22 @@ pub const input = struct {
     // the input package because the full package brings in too many
     // other dependencies.
     const paste = @import("input/paste.zig");
+    const key = @import("input/key.zig");
+    const key_encode = @import("input/key_encode.zig");
+
+    // Paste-related APIs
     pub const PasteError = paste.Error;
     pub const PasteOptions = paste.Options;
     pub const isSafePaste = paste.isSafe;
     pub const encodePaste = paste.encode;
+
+    // Key encoding
+    pub const Key = key.Key;
+    pub const KeyAction = key.Action;
+    pub const KeyEvent = key.KeyEvent;
+    pub const KeyMods = key.Mods;
+    pub const KeyEncodeOptions = key_encode.Options;
+    pub const encodeKey = key_encode.encode;
 };
 
 comptime {
@@ -90,6 +102,26 @@ comptime {
         @export(&c.osc_end, .{ .name = "ghostty_osc_end" });
         @export(&c.osc_command_type, .{ .name = "ghostty_osc_command_type" });
         @export(&c.osc_command_data, .{ .name = "ghostty_osc_command_data" });
+        @export(&c.key_event_new, .{ .name = "ghostty_key_event_new" });
+        @export(&c.key_event_free, .{ .name = "ghostty_key_event_free" });
+        @export(&c.key_event_set_action, .{ .name = "ghostty_key_event_set_action" });
+        @export(&c.key_event_get_action, .{ .name = "ghostty_key_event_get_action" });
+        @export(&c.key_event_set_key, .{ .name = "ghostty_key_event_set_key" });
+        @export(&c.key_event_get_key, .{ .name = "ghostty_key_event_get_key" });
+        @export(&c.key_event_set_mods, .{ .name = "ghostty_key_event_set_mods" });
+        @export(&c.key_event_get_mods, .{ .name = "ghostty_key_event_get_mods" });
+        @export(&c.key_event_set_consumed_mods, .{ .name = "ghostty_key_event_set_consumed_mods" });
+        @export(&c.key_event_get_consumed_mods, .{ .name = "ghostty_key_event_get_consumed_mods" });
+        @export(&c.key_event_set_composing, .{ .name = "ghostty_key_event_set_composing" });
+        @export(&c.key_event_get_composing, .{ .name = "ghostty_key_event_get_composing" });
+        @export(&c.key_event_set_utf8, .{ .name = "ghostty_key_event_set_utf8" });
+        @export(&c.key_event_get_utf8, .{ .name = "ghostty_key_event_get_utf8" });
+        @export(&c.key_event_set_unshifted_codepoint, .{ .name = "ghostty_key_event_set_unshifted_codepoint" });
+        @export(&c.key_event_get_unshifted_codepoint, .{ .name = "ghostty_key_event_get_unshifted_codepoint" });
+        @export(&c.key_encoder_new, .{ .name = "ghostty_key_encoder_new" });
+        @export(&c.key_encoder_free, .{ .name = "ghostty_key_encoder_free" });
+        @export(&c.key_encoder_setopt, .{ .name = "ghostty_key_encoder_setopt" });
+        @export(&c.key_encoder_encode, .{ .name = "ghostty_key_encoder_encode" });
     }
 }
 
