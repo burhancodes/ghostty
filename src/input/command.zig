@@ -163,6 +163,16 @@ fn actionCommands(action: Action.Key) []const Command {
             .description = "Paste the contents of the selection clipboard.",
         }},
 
+        .navigate_search => comptime &.{ .{
+            .action = .{ .navigate_search = .next },
+            .title = "Next Search Result",
+            .description = "Navigate to the next search result, if any.",
+        }, .{
+            .action = .{ .navigate_search = .previous },
+            .title = "Previous Search Result",
+            .description = "Navigate to the previous search result, if any.",
+        } },
+
         .increase_font_size => comptime &.{.{
             .action = .{ .increase_font_size = 1 },
             .title = "Increase Font Size",
@@ -604,6 +614,7 @@ fn actionCommands(action: Action.Key) []const Command {
         .csi,
         .esc,
         .cursor_key,
+        .search,
         .set_font_size,
         .scroll_to_row,
         .scroll_page_fractional,

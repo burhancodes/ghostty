@@ -332,6 +332,14 @@ pub const Action = union(enum) {
     /// to 14.5 points.
     set_font_size: f32,
 
+    /// Start a search for the given text. If the text is empty, then
+    /// the search is canceled. If a previous search is active, it is replaced.
+    search: []const u8,
+
+    /// Navigate the search results. If there is no active search, this
+    /// is not performed.
+    navigate_search: NavigateSearch,
+
     /// Clear the screen and all scrollback.
     clear_screen,
 
@@ -822,6 +830,11 @@ pub const Action = union(enum) {
         }
     };
 
+    pub const NavigateSearch = enum {
+        previous,
+        next,
+    };
+
     pub const AdjustSelection = enum {
         left,
         right,
@@ -1152,6 +1165,8 @@ pub const Action = union(enum) {
             .esc,
             .text,
             .cursor_key,
+            .search,
+            .navigate_search,
             .reset,
             .copy_to_clipboard,
             .copy_url_to_clipboard,
