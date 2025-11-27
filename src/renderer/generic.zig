@@ -1217,8 +1217,21 @@ pub fn Renderer(comptime GraphicsAPI: type) type {
             if (self.search_matches_dirty or self.terminal_state.dirty != .false) {
                 self.search_matches_dirty = false;
 
-                for (self.terminal_state.row_data.items(.highlights)) |*highlights| {
-                    highlights.clearRetainingCapacity();
+                // Clear the prior highlights
+                const row_data = self.terminal_state.row_data.slice();
+                var any_dirty: bool = false;
+                for (
+                    row_data.items(.highlights),
+                    row_data.items(.dirty),
+                ) |*highlights, *dirty| {
+                    if (highlights.items.len > 0) {
+                        highlights.clearRetainingCapacity();
+                        dirty.* = true;
+                        any_dirty = true;
+                    }
+                }
+                if (any_dirty and self.terminal_state.dirty == .false) {
+                    self.terminal_state.dirty = .partial;
                 }
 
                 // NOTE: The order below matters. Highlights added earlier
@@ -1228,7 +1241,7 @@ pub fn Renderer(comptime GraphicsAPI: type) type {
                     self.terminal_state.updateHighlightsFlattened(
                         self.alloc,
                         @intFromEnum(HighlightTag.search_match_selected),
-                        (&m.match)[0..1],
+                        &.{m.match},
                     ) catch |err| {
                         // Not a critical error, we just won't show highlights.
                         log.warn("error updating search selected highlight err={}", .{err});
@@ -2589,11 +2602,25 @@ pub fn Renderer(comptime GraphicsAPI: type) type {
                         search,
                         search_selected,
                     } = selected: {
+                        // Order below matters for precedence.
+
+                        // Selection should take the highest precedence.
+                        const x_compare = if (wide == .spacer_tail)
+                            x -| 1
+                        else
+                            x;
+                        if (selection) |sel| {
+                            if (x_compare >= sel[0] and
+                                x_compare <= sel[1]) break :selected .selection;
+                        }
+
                         // If we're highlighted, then we're selected. In the
                         // future we want to use a different style for this
                         // but this to get started.
                         for (highlights.items) |hl| {
-                            if (x >= hl.range[0] and x <= hl.range[1]) {
+                            if (x_compare >= hl.range[0] and
+                                x_compare <= hl.range[1])
+                            {
                                 const tag: HighlightTag = @enumFromInt(hl.tag);
                                 break :selected switch (tag) {
                                     .search_match => .search,
@@ -2601,15 +2628,6 @@ pub fn Renderer(comptime GraphicsAPI: type) type {
                                 };
                             }
                         }
-
-                        const sel = selection orelse break :selected .false;
-                        const x_compare = if (wide == .spacer_tail)
-                            x -| 1
-                        else
-                            x;
-
-                        if (x_compare >= sel[0] and
-                            x_compare <= sel[1]) break :selected .selection;
 
                         break :selected .false;
                     };
