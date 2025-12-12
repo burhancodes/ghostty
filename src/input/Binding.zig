@@ -519,6 +519,11 @@ pub const Action = union(enum) {
     /// version can be found by running `ghostty +version`.
     prompt_surface_title,
 
+    /// Change the title of the current tab/window via a pop-up prompt. The
+    /// title set via this prompt overrides any title set by the terminal
+    /// and persists across focus changes within the tab.
+    prompt_tab_title,
+
     /// Create a new split in the specified direction.
     ///
     /// Valid arguments:
@@ -600,9 +605,8 @@ pub const Action = union(enum) {
     /// of the `confirm-close-surface` configuration setting.
     close_surface,
 
-    /// Close the current tab and all splits therein _or_ close all tabs and
-    /// splits thein of tabs _other_ than the current tab, depending on the
-    /// mode.
+    /// Close the current tab and all splits therein, close all other tabs, or
+    /// close every tab to the right of the current one depending on the mode.
     ///
     /// If the mode is not specified, defaults to closing the current tab.
     ///
@@ -1005,6 +1009,7 @@ pub const Action = union(enum) {
     pub const CloseTabMode = enum {
         this,
         other,
+        right,
 
         pub const default: CloseTabMode = .this;
     };
@@ -1191,6 +1196,7 @@ pub const Action = union(enum) {
             .reset_font_size,
             .set_font_size,
             .prompt_surface_title,
+            .prompt_tab_title,
             .clear_screen,
             .select_all,
             .scroll_to_top,
