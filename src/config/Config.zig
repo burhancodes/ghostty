@@ -1667,6 +1667,44 @@ class: ?[:0]const u8 = null,
 ///  - Notably, global shortcuts have not been implemented on wlroots-based
 ///    compositors like Sway (see [upstream issue](https://github.com/emersion/xdg-desktop-portal-wlr/issues/240)).
 ///
+/// ## Chained Actions
+///
+/// A keybind can have multiple actions by using the `chain` keyword for
+/// subsequent actions. When a keybind is activated, all chained actions are
+/// executed in order. The syntax is:
+///
+/// ```ini
+/// keybind = ctrl+a=new_window
+/// keybind = chain=goto_split:left
+/// ```
+///
+/// This binds `ctrl+a` to first open a new window, then move focus to the
+/// left split. Each `chain` entry appends an action to the most recently
+/// defined keybind. You can chain as many actions as you want:
+///
+/// ```ini
+/// keybind = ctrl+a=new_window
+/// keybind = chain=goto_split:left
+/// keybind = chain=toggle_fullscreen
+/// ```
+///
+/// Chained actions cannot have prefixes like `global:` or `unconsumed:`.
+/// The flags from the original keybind apply to the entire chain.
+///
+/// Chained actions work with key sequences as well. For example:
+///
+/// ```ini
+/// keybind = ctrl+a>n=new_window
+/// keybind = chain=goto_split:left
+/// ````
+///
+/// Chains with key sequences apply to the most recent binding in the
+/// sequence.
+///
+/// Chained keybinds are available since Ghostty 1.3.0.
+///
+/// ## Key Tables
+///
 /// You may also create a named set of keybindings known as a "key table."
 /// A key table must be explicitly activated for the bindings to become
 /// available. This can be used to implement features such as a
@@ -1676,8 +1714,10 @@ class: ?[:0]const u8 = null,
 /// Key tables are defined using the syntax `<table>/<binding>`. The
 /// `<binding>` value is everything documented above for keybinds. The
 /// `<table>` value is the name of the key table. Table names can contain
-/// anything except `/` and `=`. For example `foo/ctrl+a=new_window`
-/// defines a binding within a table named `foo`.
+/// anything except `/`, `=`, `+`, and `>`. The characters `+` and `>` are
+/// reserved for keybind syntax (modifier combinations and key sequences).
+/// For example `foo/ctrl+a=new_window` defines a binding within a table
+/// named `foo`.
 ///
 /// Tables are activated and deactivated using the binding actions
 /// `activate_key_table:<name>` and `deactivate_key_table`. Other table
@@ -6644,12 +6684,21 @@ pub const Keybinds = struct {
         // We look for '/' only before the first '=' to avoid matching
         // action arguments like "foo=text:/hello".
         const eq_idx = std.mem.indexOfScalar(u8, value, '=') orelse value.len;
-        if (std.mem.indexOfScalar(u8, value[0..eq_idx], '/')) |slash_idx| {
+        if (std.mem.indexOfScalar(u8, value[0..eq_idx], '/')) |slash_idx| table: {
             const table_name = value[0..slash_idx];
-            const binding = value[slash_idx + 1 ..];
 
-            // Table name cannot be empty
-            if (table_name.len == 0) return error.InvalidFormat;
+            // Length zero is valid, so you can set `/=action` for the slash key
+            if (table_name.len == 0) break :table;
+
+            // Ignore '+', '>' because they can be part of sequences and
+            // triggers. This lets things like `ctrl+/=action` work.
+            if (std.mem.indexOfAny(
+                u8,
+                table_name,
+                "+>",
+            ) != null) break :table;
+
+            const binding = value[slash_idx + 1 ..];
 
             // Get or create the table
             const gop = try self.tables.getOrPut(alloc, table_name);
@@ -6748,6 +6797,21 @@ pub const Keybinds = struct {
                         self_leaf,
                         other_leaf,
                     )) return false;
+                },
+
+                .leaf_chained => {
+                    const self_chain = self_entry.value_ptr.*.leaf_chained;
+                    const other_chain = other_entry.value_ptr.*.leaf_chained;
+
+                    if (self_chain.flags != other_chain.flags) return false;
+                    if (self_chain.actions.items.len != other_chain.actions.items.len) return false;
+                    for (self_chain.actions.items, other_chain.actions.items) |a1, a2| {
+                        if (!equalField(
+                            inputpkg.Binding.Action,
+                            a1,
+                            a2,
+                        )) return false;
+                    }
                 },
             }
         }
@@ -7000,6 +7064,105 @@ pub const Keybinds = struct {
         // Should be in root set, not a table
         try testing.expectEqual(1, keybinds.set.bindings.count());
         try testing.expectEqual(0, keybinds.tables.count());
+    }
+
+    test "parseCLI slash as key with modifier is not a table" {
+        const testing = std.testing;
+        var arena = ArenaAllocator.init(testing.allocator);
+        defer arena.deinit();
+        const alloc = arena.allocator();
+
+        var keybinds: Keybinds = .{};
+
+        // ctrl+/ should be parsed as a keybind with '/' as the key, not a table
+        try keybinds.parseCLI(alloc, "ctrl+/=text:foo");
+
+        // Should be in root set, not a table
+        try testing.expectEqual(1, keybinds.set.bindings.count());
+        try testing.expectEqual(0, keybinds.tables.count());
+    }
+
+    test "parseCLI shift+slash as key is not a table" {
+        const testing = std.testing;
+        var arena = ArenaAllocator.init(testing.allocator);
+        defer arena.deinit();
+        const alloc = arena.allocator();
+
+        var keybinds: Keybinds = .{};
+
+        // shift+/ should be parsed as a keybind, not a table
+        try keybinds.parseCLI(alloc, "shift+/=ignore");
+
+        // Should be in root set, not a table
+        try testing.expectEqual(1, keybinds.set.bindings.count());
+        try testing.expectEqual(0, keybinds.tables.count());
+    }
+
+    test "parseCLI bare slash as key is not a table" {
+        const testing = std.testing;
+        var arena = ArenaAllocator.init(testing.allocator);
+        defer arena.deinit();
+        const alloc = arena.allocator();
+
+        var keybinds: Keybinds = .{};
+
+        // Bare / as a key should work (empty table name is rejected)
+        try keybinds.parseCLI(alloc, "/=text:foo");
+
+        // Should be in root set, not a table
+        try testing.expectEqual(1, keybinds.set.bindings.count());
+        try testing.expectEqual(0, keybinds.tables.count());
+    }
+
+    test "parseCLI slash in key sequence is not a table" {
+        const testing = std.testing;
+        var arena = ArenaAllocator.init(testing.allocator);
+        defer arena.deinit();
+        const alloc = arena.allocator();
+
+        var keybinds: Keybinds = .{};
+
+        // Key sequence ending with / should work
+        try keybinds.parseCLI(alloc, "ctrl+a>ctrl+/=new_window");
+
+        // Should be in root set, not a table
+        try testing.expectEqual(1, keybinds.set.bindings.count());
+        try testing.expectEqual(0, keybinds.tables.count());
+    }
+
+    test "parseCLI table with slash in binding" {
+        const testing = std.testing;
+        var arena = ArenaAllocator.init(testing.allocator);
+        defer arena.deinit();
+        const alloc = arena.allocator();
+
+        var keybinds: Keybinds = .{};
+
+        // Table with a binding that uses / as the key
+        try keybinds.parseCLI(alloc, "mytable//=text:foo");
+
+        // Should be in the table
+        try testing.expectEqual(0, keybinds.set.bindings.count());
+        try testing.expectEqual(1, keybinds.tables.count());
+        try testing.expect(keybinds.tables.contains("mytable"));
+        try testing.expectEqual(1, keybinds.tables.get("mytable").?.bindings.count());
+    }
+
+    test "parseCLI table with sequence containing slash" {
+        const testing = std.testing;
+        var arena = ArenaAllocator.init(testing.allocator);
+        defer arena.deinit();
+        const alloc = arena.allocator();
+
+        var keybinds: Keybinds = .{};
+
+        // Table with a key sequence that ends with /
+        try keybinds.parseCLI(alloc, "mytable/a>/=new_window");
+
+        // Should be in the table
+        try testing.expectEqual(0, keybinds.set.bindings.count());
+        try testing.expectEqual(1, keybinds.tables.count());
+        try testing.expect(keybinds.tables.contains("mytable"));
     }
 
     test "clone with tables" {
