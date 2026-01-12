@@ -109,7 +109,6 @@ pub const MemoryPool = struct {
 
 /// The memory pool we get page nodes, pages from.
 pool: MemoryPool,
-pool_owned: bool,
 
 /// The list of pages in the screen.
 pages: List,
@@ -324,7 +323,6 @@ pub fn init(
         .cols = cols,
         .rows = rows,
         .pool = pool,
-        .pool_owned = true,
         .pages = page_list,
         .page_serial = page_serial,
         .page_serial_min = 0,
@@ -519,11 +517,7 @@ pub fn deinit(self: *PageList) void {
 
     // Deallocate all the pages. We don't need to deallocate the list or
     // nodes because they all reside in the pool.
-    if (self.pool_owned) {
-        self.pool.deinit();
-    } else {
-        self.pool.reset(.{ .retain_capacity = {} });
-    }
+    self.pool.deinit();
 }
 
 /// Reset the PageList back to an empty state. This is similar to
@@ -641,14 +635,6 @@ pub const Clone = struct {
     top: point.Point,
     bot: ?point.Point = null,
 
-    /// The allocator source for the clone operation. If this is alloc
-    /// then the cloned pagelist will own and dealloc the memory on deinit.
-    /// If this is pool then the caller owns the memory.
-    memory: union(enum) {
-        alloc: Allocator,
-        pool: *MemoryPool,
-    },
-
     // If this is non-null then cloning will attempt to remap the tracked
     // pins into the new cloned area and will keep track of the old to
     // new mapping in this map. If this is null, the cloned pagelist will
@@ -670,37 +656,26 @@ pub const Clone = struct {
 /// rows will be added to the bottom of the region to make up the difference.
 pub fn clone(
     self: *const PageList,
+    alloc: Allocator,
     opts: Clone,
 ) !PageList {
     var it = self.pageIterator(.right_down, opts.top, opts.bot);
 
-    // Setup our own memory pool if we have to.
-    var owned_pool: ?MemoryPool = switch (opts.memory) {
-        .pool => null,
-        .alloc => |alloc| alloc: {
-            // First, count our pages so our preheat is exactly what we need.
-            var it_copy = it;
-            const page_count: usize = page_count: {
-                var count: usize = 0;
-                while (it_copy.next()) |_| count += 1;
-                break :page_count count;
-            };
-
-            // Setup our pools
-            break :alloc try .init(
-                alloc,
-                pageAllocator(),
-                page_count,
-            );
-        },
+    // First, count our pages so our preheat is exactly what we need.
+    var it_copy = it;
+    const page_count: usize = page_count: {
+        var count: usize = 0;
+        while (it_copy.next()) |_| count += 1;
+        break :page_count count;
     };
-    errdefer if (owned_pool) |*pool| pool.deinit();
 
-    // Create our memory pool we use
-    const pool: *MemoryPool = switch (opts.memory) {
-        .pool => |v| v,
-        .alloc => &owned_pool.?,
-    };
+    // Setup our pool
+    var pool: MemoryPool = try .init(
+        alloc,
+        pageAllocator(),
+        page_count,
+    );
+    errdefer pool.deinit();
 
     // Our viewport pin is always undefined since our viewport in a clones
     // goes back to the top
@@ -729,7 +704,7 @@ pub fn clone(
         // Clone the page. We have to use createPageExt here because
         // we don't know if the source page has a standard size.
         const node = try createPageExt(
-            pool,
+            &pool,
             chunk.node.data.capacity,
             &page_serial,
             &page_size,
@@ -770,11 +745,7 @@ pub fn clone(
     }
 
     var result: PageList = .{
-        .pool = pool.*,
-        .pool_owned = switch (opts.memory) {
-            .pool => false,
-            .alloc => true,
-        },
+        .pool = pool,
         .pages = page_list,
         .page_serial = page_serial,
         .page_serial_min = 0,
@@ -2538,6 +2509,18 @@ pub fn grow(self: *PageList) !?*List.Node {
             }
         }
 
+        // Update any tracked pins that point to this page to point to the
+        // new first page to the top-left, and mark them as garbage.
+        const pin_keys = self.tracked_pins.keys();
+        for (pin_keys) |p| {
+            if (p.node != first) continue;
+            p.node = self.pages.first.?;
+            p.y = 0;
+            p.x = 0;
+            p.garbage = true;
+        }
+        self.viewport_pin.garbage = false;
+
         // If our first node has non-standard memory size, we can't reuse
         // it. This is because our initBuf below would change the underlying
         // memory length which would break our memory free outside the pool.
@@ -2566,18 +2549,6 @@ pub fn grow(self: *PageList) !?*List.Node {
         self.page_serial_min = first.serial + 1;
         first.serial = self.page_serial;
         self.page_serial += 1;
-
-        // Update any tracked pins that point to this page to point to the
-        // new first page to the top-left.
-        const pin_keys = self.tracked_pins.keys();
-        for (pin_keys) |p| {
-            if (p.node != first) continue;
-            p.node = self.pages.first.?;
-            p.y = 0;
-            p.x = 0;
-            p.garbage = true;
-        }
-        self.viewport_pin.garbage = false;
 
         // In this case we do NOT need to update page_size because
         // we're reusing an existing page so nothing has changed.
@@ -7141,9 +7112,8 @@ test "PageList clone" {
     defer s.deinit();
     try testing.expectEqual(@as(usize, s.rows), s.totalRows());
 
-    var s2 = try s.clone(.{
+    var s2 = try s.clone(alloc, .{
         .top = .{ .screen = .{} },
-        .memory = .{ .alloc = alloc },
     });
     defer s2.deinit();
     try testing.expectEqual(@as(usize, s.rows), s2.totalRows());
@@ -7158,10 +7128,9 @@ test "PageList clone partial trimmed right" {
     try testing.expectEqual(@as(usize, s.rows), s.totalRows());
     try s.growRows(30);
 
-    var s2 = try s.clone(.{
+    var s2 = try s.clone(alloc, .{
         .top = .{ .screen = .{} },
         .bot = .{ .screen = .{ .y = 39 } },
-        .memory = .{ .alloc = alloc },
     });
     defer s2.deinit();
     try testing.expectEqual(@as(usize, 40), s2.totalRows());
@@ -7176,9 +7145,8 @@ test "PageList clone partial trimmed left" {
     try testing.expectEqual(@as(usize, s.rows), s.totalRows());
     try s.growRows(30);
 
-    var s2 = try s.clone(.{
+    var s2 = try s.clone(alloc, .{
         .top = .{ .screen = .{ .y = 10 } },
-        .memory = .{ .alloc = alloc },
     });
     defer s2.deinit();
     try testing.expectEqual(@as(usize, 40), s2.totalRows());
@@ -7220,9 +7188,8 @@ test "PageList clone partial trimmed left reclaims styles" {
         try testing.expectEqual(1, page.styles.count());
     }
 
-    var s2 = try s.clone(.{
+    var s2 = try s.clone(alloc, .{
         .top = .{ .screen = .{ .y = 10 } },
-        .memory = .{ .alloc = alloc },
     });
     defer s2.deinit();
     try testing.expectEqual(@as(usize, 40), s2.totalRows());
@@ -7243,10 +7210,9 @@ test "PageList clone partial trimmed both" {
     try testing.expectEqual(@as(usize, s.rows), s.totalRows());
     try s.growRows(30);
 
-    var s2 = try s.clone(.{
+    var s2 = try s.clone(alloc, .{
         .top = .{ .screen = .{ .y = 10 } },
         .bot = .{ .screen = .{ .y = 35 } },
-        .memory = .{ .alloc = alloc },
     });
     defer s2.deinit();
     try testing.expectEqual(@as(usize, 26), s2.totalRows());
@@ -7260,9 +7226,8 @@ test "PageList clone less than active" {
     defer s.deinit();
     try testing.expectEqual(@as(usize, s.rows), s.totalRows());
 
-    var s2 = try s.clone(.{
+    var s2 = try s.clone(alloc, .{
         .top = .{ .active = .{ .y = 5 } },
-        .memory = .{ .alloc = alloc },
     });
     defer s2.deinit();
     try testing.expectEqual(@as(usize, s.rows), s2.totalRows());
@@ -7282,9 +7247,8 @@ test "PageList clone remap tracked pin" {
 
     var pin_remap = Clone.TrackedPinsRemap.init(alloc);
     defer pin_remap.deinit();
-    var s2 = try s.clone(.{
+    var s2 = try s.clone(alloc, .{
         .top = .{ .active = .{ .y = 5 } },
-        .memory = .{ .alloc = alloc },
         .tracked_pins = &pin_remap,
     });
     defer s2.deinit();
@@ -7311,9 +7275,8 @@ test "PageList clone remap tracked pin not in cloned area" {
 
     var pin_remap = Clone.TrackedPinsRemap.init(alloc);
     defer pin_remap.deinit();
-    var s2 = try s.clone(.{
+    var s2 = try s.clone(alloc, .{
         .top = .{ .active = .{ .y = 5 } },
-        .memory = .{ .alloc = alloc },
         .tracked_pins = &pin_remap,
     });
     defer s2.deinit();
@@ -7335,9 +7298,8 @@ test "PageList clone full dirty" {
     s.markDirty(.{ .active = .{ .x = 0, .y = 12 } });
     s.markDirty(.{ .active = .{ .x = 0, .y = 23 } });
 
-    var s2 = try s.clone(.{
+    var s2 = try s.clone(alloc, .{
         .top = .{ .screen = .{} },
-        .memory = .{ .alloc = alloc },
     });
     defer s2.deinit();
     try testing.expectEqual(@as(usize, s.rows), s2.totalRows());
@@ -11068,6 +11030,10 @@ test "PageList grow reuses non-standard page without leak" {
     const first_page_ptr = s.pages.first.?;
     const first_page_mem_ptr = s.pages.first.?.data.memory.ptr;
 
+    // Create a tracked pin pointing to the non-standard first page
+    const tracked_pin = try s.trackPin(.{ .node = first_page_ptr, .x = 0, .y = 0 });
+    defer s.untrackPin(tracked_pin);
+
     // Now grow one more time to trigger the reuse path. Since the first page
     // is non-standard, it should be destroyed (not reused). The testing
     // allocator will detect a leak if destroyNode doesn't properly free
@@ -11082,4 +11048,10 @@ test "PageList grow reuses non-standard page without leak" {
     // If the non-standard page was properly destroyed and not reused,
     // the last page should not have the same memory pointer
     try testing.expect(s.pages.last.?.data.memory.ptr != first_page_mem_ptr);
+
+    // The tracked pin should have been moved to the new first page and marked as garbage
+    try testing.expectEqual(s.pages.first.?, tracked_pin.node);
+    try testing.expectEqual(0, tracked_pin.x);
+    try testing.expectEqual(0, tracked_pin.y);
+    try testing.expect(tracked_pin.garbage);
 }
